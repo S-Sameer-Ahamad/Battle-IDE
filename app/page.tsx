@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import BattleLogo from "@/components/battle-logo"
-import FeatureCard from "@/components/feature-card"
+import FeatureSwiper from "@/components/feature-swiper"
 
 export default function Home() {
   const [hoveredCTA, setHoveredCTA] = useState<string | null>(null)
@@ -134,104 +134,89 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="relative py-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-4 text-white">Battle-Ready Features</h2>
-          <p className="text-center text-gray-400 mb-16 max-w-2xl mx-auto">
-            Everything you need to compete at the highest level
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard
-              icon="⚡"
-              title="Real-Time Execution"
-              description="See your code run instantly with live output and error feedback during battles."
-              highlight="cyan"
-            />
-            <FeatureCard
-              icon="🎯"
-              title="Smart Matchmaking"
-              description="Get paired with opponents at your skill level using our advanced Elo rating system."
-              highlight="magenta"
-            />
-            <FeatureCard
-              icon="📊"
-              title="Live Leaderboard"
-              description="Climb the global rankings and earn badges as you dominate the competition."
-              highlight="cyan"
-            />
-            <FeatureCard
-              icon="🔐"
-              title="Secure Execution"
-              description="Battle with confidence knowing your code runs in isolated, sandboxed environments."
-              highlight="magenta"
-            />
-            <FeatureCard
-              icon="📈"
-              title="Detailed Analytics"
-              description="Track your progress with comprehensive stats, win rates, and performance metrics."
-              highlight="cyan"
-            />
-            <FeatureCard
-              icon="🌍"
-              title="Global Community"
-              description="Connect with coders worldwide, share solutions, and learn from the best."
-              highlight="magenta"
-            />
-          </div>
-        </div>
+      <section id="features" className="bg-black py-16">
+        <FeatureSwiper />
       </section>
+      /* How It Works Section - Proper Alternating Timeline */
+<section id="how-it-works" className="relative py-20 px-4 border-t border-cyan-500/20">
+  <div className="max-w-5xl mx-auto">
+    <h2 className="text-4xl md:text-5xl font-bold text-center mb-20 text-white">How It Works</h2>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="relative py-20 px-4 border-t border-cyan-500/20">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-white">How It Works</h2>
+    <div className="relative">
+      {/* Central vertical line */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-cyan-500 via-pink-500 to-orange-500"></div>
 
-          <div className="space-y-8">
-            {[
-              {
-                step: 1,
-                title: "Create Your Profile",
-                description:
-                  "Sign up with email or OAuth and set your coding preferences. Your Elo rating starts at 1200.",
-              },
-              {
-                step: 2,
-                title: "Find an Opponent",
-                description: 'Click "Find Battle" and get matched with a similarly-skilled opponent in seconds.',
-              },
-              {
-                step: 3,
-                title: "Code & Compete",
-                description: "Solve the challenge in your preferred language. Real-time execution shows your progress.",
-              },
-              {
-                step: 4,
-                title: "Compare & Learn",
-                description: "After the battle, review both solutions side-by-side and see how you performed.",
-              },
-            ].map((item) => (
-              <div key={item.step} className="flex gap-6 items-start">
-                <div
-                  className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg neon-glow"
-                  style={{
-                    background: item.step % 2 === 0 ? "rgba(255, 0, 127, 0.2)" : "rgba(0, 255, 255, 0.2)",
-                    color: item.step % 2 === 0 ? "#FF007F" : "#00FFFF",
-                    boxShadow:
-                      item.step % 2 === 0 ? "0 0 15px rgba(255, 0, 127, 0.4)" : "0 0 15px rgba(0, 255, 255, 0.4)",
-                  }}
-                >
-                  {item.step}
+      {/* Steps */}
+      {[
+        {
+          step: 1,
+          title: "Create Your Profile",
+          description:
+            "Sign up with email or OAuth and set your coding preferences. Your Elo rating starts at 1200.",
+          bgColor: "from-blue-600 to-cyan-500",
+        },
+        {
+          step: 2,
+          title: "Find an Opponent",
+          description:
+            'Click "Find Battle" and get matched with a similarly-skilled opponent in seconds.',
+          bgColor: "from-purple-600 to-pink-500",
+        },
+        {
+          step: 3,
+          title: "Code & Compete",
+          description:
+            "Solve the challenge in your preferred language. Real-time execution shows your progress.",
+          bgColor: "from-orange-600 to-red-500",
+        },
+        {
+          step: 4,
+          title: "Compare & Learn",
+          description:
+            "After the battle, review both solutions side-by-side and see how you performed.",
+          bgColor: "from-amber-600 to-orange-500",
+        },
+      ].map((item, index) => {
+        const isLeft = index % 2 === 0;
+        return (
+          <div key={item.step} className="relative mb-12 md:mb-16 flex items-stretch">
+            {/* Left side container */}
+            <div className={`w-0 md:w-5/12 flex ${isLeft ? "justify-end pr-6" : "justify-start"}`}>
+              {isLeft && (
+                <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-6 hover:border-slate-700/80 transition-all w-full max-w-xs">
+                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-                  <p className="text-gray-400">{item.description}</p>
-                </div>
+              )}
+            </div>
+
+            {/* Center circle and line segment */}
+            <div className="w-full md:w-2/12 flex flex-col items-center relative">
+              {/* Circle */}
+              <div
+                className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold text-white bg-gradient-to-br ${item.bgColor} shadow-lg border-4 border-black relative z-10 flex-shrink-0`}
+              >
+                <span className="text-lg md:text-xl">{item.step}</span>
               </div>
-            ))}
+            </div>
+
+            {/* Right side container */}
+            <div className={`w-0 md:w-5/12 flex ${!isLeft ? "justify-start pl-6" : "justify-end"}`}>
+              {!isLeft && (
+                <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-6 hover:border-slate-700/80 transition-all w-full max-w-xs">
+                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+
 
       {/* CTA Section */}
       <section className="relative py-20 px-4">
