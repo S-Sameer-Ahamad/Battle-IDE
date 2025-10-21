@@ -1,11 +1,22 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import BattleLogo from "@/components/battle-logo"
 import FeatureSwiper from "@/components/feature-swiper"
 
 export default function Home() {
   const [hoveredCTA, setHoveredCTA] = useState<string | null>(null)
+  const router = useRouter()
+
+  const handleNavigation = (path: string) => {
+    router.push(path)
+  }
+
+  const handleScrollToFeatures = () => {
+    const featuresSection = document.getElementById("features")
+    featuresSection?.scrollIntoView({ behavior: "smooth" })
+  }
 
   return (
     <main className="battle-bg min-h-screen overflow-hidden">
@@ -14,10 +25,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center text-background bg-black">
           <div className="text-xl font-bold neon-text-cyan">⚔️BATTLE IDE</div>
           <div className="flex gap-6 items-center">
-            
-            
             <button
-              className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300"
+              onClick={() => handleNavigation("/auth/login")}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 cursor-pointer"
               style={{
                 background: "linear-gradient(135deg, #00FFFF, #FF007F)",
                 color: "#0A0A0F",
@@ -29,13 +39,14 @@ export default function Home() {
               Sign In
             </button>
             <button
-              className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300"
+              onClick={() => handleNavigation("/auth/register")}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 cursor-pointer"
               style={{
                 background: "linear-gradient(135deg, #00FFFF, #FF007F)",
                 color: "#0A0A0F",
-                boxShadow: hoveredCTA === "nav-login" ? "0 0 20px rgba(0, 255, 255, 0.6)" : "none",
+                boxShadow: hoveredCTA === "nav-signup" ? "0 0 20px rgba(0, 255, 255, 0.6)" : "none",
               }}
-              onMouseEnter={() => setHoveredCTA("nav-login")}
+              onMouseEnter={() => setHoveredCTA("nav-signup")}
               onMouseLeave={() => setHoveredCTA(null)}
             >
               Sign Up
@@ -43,7 +54,6 @@ export default function Home() {
           </div>
         </div>
       </nav>
-
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 px-4 overflow-hidden">
         {/* Animated background elements */}
@@ -86,7 +96,8 @@ export default function Home() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <button
-              className="px-8 py-4 rounded-lg font-bold text-lg transition-all duration-300 neon-glow"
+              onClick={() => handleNavigation("/auth/register")}
+              className="px-8 py-4 rounded-lg font-bold text-lg transition-all duration-300 neon-glow cursor-pointer"
               style={{
                 background: "linear-gradient(135deg, #00FFFF, #00CCFF)",
                 color: "#0A0A0F",
@@ -101,7 +112,8 @@ export default function Home() {
               Start Your First Battle
             </button>
             <button
-              className="px-8 py-4 rounded-lg font-bold text-lg transition-all duration-300 border-2"
+              onClick={handleScrollToFeatures}
+              className="px-8 py-4 rounded-lg font-bold text-lg transition-all duration-300 border-2 cursor-pointer"
               style={{
                 borderColor: "#FF007F",
                 color: "#FF007F",
@@ -132,92 +144,85 @@ export default function Home() {
           </div>
         </div>
       </section>
-
       {/* Features Section */}
       <section id="features" className="bg-black py-16">
         <FeatureSwiper />
       </section>
       /* How It Works Section - Proper Alternating Timeline */
-<section id="how-it-works" className="relative py-20 px-4 border-t border-cyan-500/20">
-  <div className="max-w-5xl mx-auto">
-    <h2 className="text-4xl md:text-5xl font-bold text-center mb-20 text-white">How It Works</h2>
+      <section id="how-it-works" className="relative py-20 px-4 border-t border-cyan-500/20">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-20 text-white">How It Works</h2>
 
-    <div className="relative">
-      {/* Central vertical line */}
-      <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-cyan-500 via-pink-500 to-orange-500"></div>
+          <div className="relative">
+            {/* Central vertical line */}
+            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-cyan-500 via-pink-500 to-orange-500"></div>
 
-      {/* Steps */}
-      {[
-        {
-          step: 1,
-          title: "Create Your Profile",
-          description:
-            "Sign up with email or OAuth and set your coding preferences. Your Elo rating starts at 1200.",
-          bgColor: "from-blue-600 to-cyan-500",
-        },
-        {
-          step: 2,
-          title: "Find an Opponent",
-          description:
-            'Click "Find Battle" and get matched with a similarly-skilled opponent in seconds.',
-          bgColor: "from-purple-600 to-pink-500",
-        },
-        {
-          step: 3,
-          title: "Code & Compete",
-          description:
-            "Solve the challenge in your preferred language. Real-time execution shows your progress.",
-          bgColor: "from-orange-600 to-red-500",
-        },
-        {
-          step: 4,
-          title: "Compare & Learn",
-          description:
-            "After the battle, review both solutions side-by-side and see how you performed.",
-          bgColor: "from-amber-600 to-orange-500",
-        },
-      ].map((item, index) => {
-        const isLeft = index % 2 === 0;
-        return (
-          <div key={item.step} className="relative mb-12 md:mb-16 flex items-stretch">
-            {/* Left side container */}
-            <div className={`w-0 md:w-5/12 flex ${isLeft ? "justify-end pr-6" : "justify-start"}`}>
-              {isLeft && (
-                <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-6 hover:border-slate-700/80 transition-all w-full max-w-xs">
-                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+            {/* Steps */}
+            {[
+              {
+                step: 1,
+                title: "Create Your Profile",
+                description:
+                  "Sign up with email or OAuth and set your coding preferences. Your Elo rating starts at 1200.",
+                bgColor: "from-blue-600 to-cyan-500",
+              },
+              {
+                step: 2,
+                title: "Find an Opponent",
+                description: 'Click "Find Battle" and get matched with a similarly-skilled opponent in seconds.',
+                bgColor: "from-purple-600 to-pink-500",
+              },
+              {
+                step: 3,
+                title: "Code & Compete",
+                description: "Solve the challenge in your preferred language. Real-time execution shows your progress.",
+                bgColor: "from-orange-600 to-red-500",
+              },
+              {
+                step: 4,
+                title: "Compare & Learn",
+                description: "After the battle, review both solutions side-by-side and see how you performed.",
+                bgColor: "from-amber-600 to-orange-500",
+              },
+            ].map((item, index) => {
+              const isLeft = index % 2 === 0
+              return (
+                <div key={item.step} className="relative mb-12 md:mb-16 flex items-stretch">
+                  {/* Left side container */}
+                  <div className={`w-0 md:w-5/12 flex ${isLeft ? "justify-end pr-6" : "justify-start"}`}>
+                    {isLeft && (
+                      <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-6 hover:border-slate-700/80 transition-all w-full max-w-xs">
+                        <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                        <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Center circle and line segment */}
+                  <div className="w-full md:w-2/12 flex flex-col items-center relative">
+                    {/* Circle */}
+                    <div
+                      className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold text-white bg-gradient-to-br ${item.bgColor} shadow-lg border-4 border-black relative z-10 flex-shrink-0`}
+                    >
+                      <span className="text-lg md:text-xl">{item.step}</span>
+                    </div>
+                  </div>
+
+                  {/* Right side container */}
+                  <div className={`w-0 md:w-5/12 flex ${!isLeft ? "justify-start pl-6" : "justify-end"}`}>
+                    {!isLeft && (
+                      <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-6 hover:border-slate-700/80 transition-all w-full max-w-xs">
+                        <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
+                        <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Center circle and line segment */}
-            <div className="w-full md:w-2/12 flex flex-col items-center relative">
-              {/* Circle */}
-              <div
-                className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold text-white bg-gradient-to-br ${item.bgColor} shadow-lg border-4 border-black relative z-10 flex-shrink-0`}
-              >
-                <span className="text-lg md:text-xl">{item.step}</span>
-              </div>
-            </div>
-
-            {/* Right side container */}
-            <div className={`w-0 md:w-5/12 flex ${!isLeft ? "justify-start pl-6" : "justify-end"}`}>
-              {!isLeft && (
-                <div className="bg-slate-900/50 border border-slate-800/50 rounded-lg p-6 hover:border-slate-700/80 transition-all w-full max-w-xs">
-                  <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
-                </div>
-              )}
-            </div>
+              )
+            })}
           </div>
-        );
-      })}
-    </div>
-  </div>
-</section>
-
-
-
+        </div>
+      </section>
       {/* CTA Section */}
       <section className="relative py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
@@ -226,7 +231,8 @@ export default function Home() {
             Join thousands of coders competing in real-time battles. Your next challenge awaits.
           </p>
           <button
-            className="px-10 py-4 rounded-lg font-bold text-lg transition-all duration-300 neon-glow pulse-glow"
+            onClick={() => handleNavigation("/auth/register")}
+            className="px-10 py-4 rounded-lg font-bold text-lg transition-all duration-300 neon-glow pulse-glow cursor-pointer"
             style={{
               background: "linear-gradient(135deg, #00FFFF, #FF007F)",
               color: "#0A0A0F",
@@ -236,7 +242,6 @@ export default function Home() {
           </button>
         </div>
       </section>
-
       {/* Footer */}
       <footer className="border-t border-cyan-500/20 py-12 px-4">
         <div className="max-w-6xl mx-auto">
