@@ -1,18 +1,16 @@
 "use client"
 
-import { useState } from "react"
-import AppHeader from "@/components/app-header"
-import MainFooter from "@/components/main-footer"
+import { useState, use } from "react"
+import AuthenticatedLayout from "@/components/authenticated-layout"
 
-export default function RoomPage({ params }: { params: { code: string } }) {
+export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = use(params)
   const [selectedProblem, setSelectedProblem] = useState("")
   const [isHost] = useState(true)
 
   return (
-    <div className="min-h-screen bg-black">
-      <AppHeader />
-
-      <main className="pt-20 px-4 sm:px-6 lg:px-8 pb-20">
+    <AuthenticatedLayout>
+      <main className="px-4 sm:px-6 lg:px-8 pb-20">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-8">Custom Room</h1>
 
@@ -23,7 +21,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
               <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-6">
                 <h3 className="text-white font-bold mb-4">Room Code</h3>
                 <div className="bg-black/50 p-4 rounded-lg mb-4 font-mono text-center text-cyan-400 font-bold text-2xl">
-                  {params.code}
+                  {code}
                 </div>
                 <button
                   className="w-full py-2 rounded-lg font-bold"
@@ -125,8 +123,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           </div>
         </div>
       </main>
-
-      <MainFooter />
-    </div>
+    </AuthenticatedLayout>
   )
 }

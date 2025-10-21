@@ -1,17 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import AppHeader from "@/components/app-header"
-import MainFooter from "@/components/main-footer"
+import { useState, use } from "react"
+import AuthenticatedLayout from "@/components/authenticated-layout"
 
-export default function ProfilePage({ params }: { params: { id: string } }) {
+export default function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [isFollowing, setIsFollowing] = useState(false)
 
   return (
-    <div className="min-h-screen bg-black">
-      <AppHeader />
-
-      <main className="pt-20 px-4 sm:px-6 lg:px-8 pb-20">
+    <AuthenticatedLayout>
+      <main className="px-4 sm:px-6 lg:px-8 pb-20">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Profile Card */}
@@ -88,8 +86,6 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
           </div>
         </div>
       </main>
-
-      <MainFooter />
-    </div>
+    </AuthenticatedLayout>
   )
 }

@@ -9,8 +9,12 @@ interface ChatMessage {
   timestamp: Date
 }
 
-export default function ChatPanel() {
-  const [isOpen, setIsOpen] = useState(false)
+interface ChatPanelProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const [activeTab, setActiveTab] = useState<"friends" | "chat" | "requests">("friends")
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -37,30 +41,20 @@ export default function ChatPanel() {
     }
   }
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-magenta-secondary flex items-center justify-center text-white shadow-lg hover:shadow-xl transition-shadow z-40"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-          />
-        </svg>
-      </button>
-    )
-  }
+  if (!isOpen) return null
+
+  const tabs = [
+    { id: "friends", label: "Friends" },
+    { id: "chat", label: "Chat" },
+    { id: "requests", label: "Requests" },
+  ] as const
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 h-96 bg-accent-card border border-cyan-500/20 rounded-lg shadow-xl flex flex-col z-40">
+    <div className="fixed bottom-6 right-6 w-96 h-[400px] bg-accent-card border border-cyan-500/20 rounded-lg shadow-xl flex flex-col z-40">
       {/* Header */}
       <div className="flex justify-between items-center p-4 border-b border-cyan-500/20">
         <h3 className="text-white font-bold">Messages</h3>
-        <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -69,61 +63,108 @@ export default function ChatPanel() {
 
       {/* Tabs */}
       <div className="flex border-b border-cyan-500/20">
-        {["friends", "chat", "requests"].map((tab) => (
+        {tabs.map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab as typeof activeTab)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
             className={`flex-1 px-4 py-2 text-sm font-semibold transition-colors ${
-              activeTab === tab ? "text-cyan-400 border-b-2 border-cyan-400" : "text-gray-400 hover:text-white"
+              activeTab === tab.id
+                ? "text-cyan-400 border-b-2 border-cyan-400"
+                : "text-gray-400 hover:text-white"
             }`}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {tab.label}
           </button>
         ))}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto">
         {activeTab === "friends" && (
-          <div className="space-y-2">
-            {["Player 1", "Player 2", "Player 3"].map((player) => (
-              <div key={player} className="flex items-center gap-3 p-2 hover:bg-black/50 rounded-lg cursor-pointer">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-magenta-secondary flex items-center justify-center text-white text-xs font-bold">
-                  {player[0]}
-                </div>
-                <div className="flex-1">
-                  <div className="text-white text-sm font-semibold">{player}</div>
-                  <div className="text-xs text-gray-400">Online</div>
+          <div className="p-4 space-y-3">
+            <h4 className="text-white font-bold mb-3">Top 5 Players</h4>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between p-2 hover:bg-black/50 rounded transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-cyan-400 font-bold text-xs">#1</span>
+                  <span className="text-white text-sm">Player 1</span>
+                  <span className="text-gray-400 text-xs">(1500+)</span>
                 </div>
               </div>
-            ))}
+              <div className="flex items-center justify-between p-2 hover:bg-black/50 rounded transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-cyan-400 font-bold text-xs">#2</span>
+                  <span className="text-white text-sm">CodeMaster</span>
+                  <span className="text-gray-400 text-xs">(1500+)</span>
+                  <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-2 hover:bg-black/50 rounded transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-cyan-400 font-bold text-xs">#3</span>
+                  <span className="text-white text-sm">Player 3</span>
+                  <span className="text-gray-400 text-xs">(1500+)</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-2 hover:bg-black/50 rounded transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-cyan-400 font-bold text-xs">#4</span>
+                  <span className="text-white text-sm">AlgoNinja</span>
+                  <span className="text-gray-400 text-xs">(1500+)</span>
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-2 hover:bg-black/50 rounded transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-cyan-400 font-bold text-xs">#5</span>
+                  <span className="text-white text-sm">Player 5</span>
+                  <span className="text-gray-400 text-xs">(1500+)</span>
+                </div>
+              </div>
+            </div>
+            <button className="w-full mt-3 py-2 px-3 bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-colors text-xs">
+              View Full Leaderboard
+            </button>
           </div>
         )}
 
         {activeTab === "chat" && (
-          <div className="space-y-2">
-            {messages.map((msg) => (
-              <div key={msg.id} className="text-sm">
-                <div className="text-cyan-400 font-semibold text-xs">{msg.sender}</div>
-                <div className="text-gray-300">{msg.message}</div>
+          <div className="p-4 space-y-2">
+            {messages.map((message) => (
+              <div key={message.id} className="flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-cyan-400 text-xs font-semibold">{message.sender}</span>
+                  <span className="text-gray-500 text-xs">
+                    {message.timestamp.toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="text-white text-sm bg-black/50 rounded p-2">{message.message}</div>
               </div>
             ))}
           </div>
         )}
 
         {activeTab === "requests" && (
-          <div className="space-y-2">
-            {["Player 4", "Player 5"].map((player) => (
-              <div key={player} className="flex items-center justify-between p-2 bg-black/50 rounded-lg">
-                <div className="text-white text-sm font-semibold">{player}</div>
-                <div className="flex gap-2">
-                  <button className="px-2 py-1 text-xs bg-cyan-500 text-black rounded hover:bg-cyan-600">Accept</button>
-                  <button className="px-2 py-1 text-xs border border-cyan-500/30 text-white rounded hover:bg-black/50">
-                    Decline
-                  </button>
+          <div className="p-4 space-y-2">
+            <div className="flex items-center justify-between p-2 bg-black/50 rounded">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-magenta-secondary flex items-center justify-center text-white text-xs font-bold">
+                  P
+                </div>
+                <div>
+                  <div className="text-white text-sm font-semibold">Player123</div>
+                  <div className="text-xs text-gray-400">Wants to be friends</div>
                 </div>
               </div>
-            ))}
+              <div className="flex gap-1">
+                <button className="px-2 py-1 text-xs bg-cyan-500 text-black rounded hover:bg-cyan-600">
+                  Accept
+                </button>
+                <button className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700">
+                  Decline
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

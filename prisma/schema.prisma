@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  bio       String?
+  elo       Int      @default(1200)
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  submissions     Submission[]
+  matchParticipants MatchParticipant[]
+  sentFriendRequests     FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+model Problem {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  examples    String
+  difficulty  String   // Easy, Medium, Hard
+  timeLimit   Int      // in milliseconds
+  memoryLimit Int      // in MB
+  testCases   String   // JSON string of test cases
+  solution    String   // Official solution
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  matches Match[]
+
+  @@map("problems")
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  problemId Int
+  type      String   // "1v1", "group"
+  status    String   @default("waiting") // waiting, active, completed, cancelled
+  roomCode  String?  // For group matches
+  createdAt DateTime @default(now())
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  // Relations
+  problem       Problem            @relation(fields: [problemId], references: [id])
+  participants  MatchParticipant[]
+  submissions   Submission[]
+
+  @@map("matches")
+}
+
+model MatchParticipant {
+  id       String @id @default(cuid())
+  matchId  String
+  userId   String
+  isHost   Boolean @default(false)
+  joinedAt DateTime @default(now())
+
+  // Relations
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([matchId, userId])
+  @@map("match_participants")
+}
+
+model Submission {
+  id               String   @id @default(cuid())
+  matchId          String
+  userId           String
+  code             String
+  language         String
+  status           String   @default("pending") // pending, accepted, wrong_answer, time_limit, runtime_error
+  testCasesPassed  Int      @default(0)
+  totalTestCases   Int      @default(0)
+  executionTime    Int?     // in milliseconds
+  submittedAt      DateTime @default(now())
+
+  // Relations
+  match Match @relation(fields: [matchId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("submissions")
+}
+
+model FriendRequest {
+  id        String   @id @default(cuid())
+  senderId  String
+  receiverId String
+  status    String   @default("pending") // pending, accepted, declined
+  createdAt DateTime @default(now())
+
+  // Relations
+  sender   User @relation("SentFriendRequests", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedFriendRequests", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  senderId  String
+  receiverId String
+  content   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // friend_request, match_invite, match_result
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  data      String?  // JSON string for additional data
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}

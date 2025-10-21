@@ -1,13 +1,22 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export default function AdminProblemsPage() {
-  const problems = [
+  const [problems, setProblems] = useState([
     { id: 1, title: "Two Sum", difficulty: "Easy", submissions: 1234 },
     { id: 2, title: "Add Two Numbers", difficulty: "Medium", submissions: 856 },
     { id: 3, title: "Longest Substring", difficulty: "Medium", submissions: 645 },
-  ]
+  ])
+
+  const handleDelete = (id: number) => {
+    if (confirm("Are you sure you want to delete this problem?")) {
+      setProblems(problems.filter(p => p.id !== id))
+      toast.success("Problem deleted successfully!")
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black">
@@ -73,7 +82,10 @@ export default function AdminProblemsPage() {
                       >
                         Edit
                       </Link>
-                      <button className="px-3 py-1 rounded text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+                      <button 
+                        onClick={() => handleDelete(problem.id)}
+                        className="px-3 py-1 rounded text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                      >
                         Delete
                       </button>
                     </td>

@@ -25,12 +25,16 @@ export function QuickMatchCard() {
   )
 }
 
-export function FriendlyMatchCard() {
+interface FriendlyMatchCardProps {
+  onInviteUser?: () => void
+}
+
+export function FriendlyMatchCard({ onInviteUser }: FriendlyMatchCardProps) {
   const router = useRouter()
 
   return (
     <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-8 hover:border-cyan-500/40 transition-all">
-      <h2 className="text-2xl font-bold text-white mb-2">Friendly Match</h2>
+      <h2 className="text-2xl font-bold text-white mb-2">Friendly Match (1v1)</h2>
       <p className="text-gray-400 mb-6">Challenge a friend or invite someone by username.</p>
       <div className="flex gap-4">
         <button
@@ -40,7 +44,7 @@ export function FriendlyMatchCard() {
           Generate Invite Link
         </button>
         <button
-          onClick={() => router.push("/invite/username")}
+          onClick={onInviteUser}
           className="flex-1 px-6 py-2 rounded-lg border border-cyan-500/30 text-white hover:bg-black/50 transition-colors"
         >
           Invite by Username

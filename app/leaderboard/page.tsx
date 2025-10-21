@@ -1,29 +1,51 @@
 "use client"
 
 import { useState } from "react"
-import AppHeader from "@/components/app-header"
-import MainFooter from "@/components/main-footer"
+import AuthenticatedLayout from "@/components/authenticated-layout"
+import { useLeaderboard } from "@/lib/hooks"
 
 export default function LeaderboardPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const offset = (currentPage - 1) * itemsPerPage
 
-  const leaderboardData = Array.from({ length: 50 }, (_, i) => ({
-    rank: i + 1,
-    username: `Player ${i + 1}`,
-    elo: 2500 - i * 50,
-    change: Math.random() > 0.5 ? Math.floor(Math.random() * 100) : -Math.floor(Math.random() * 100),
-    wins: Math.floor(Math.random() * 200),
-  }))
+  const { data, loading, error } = useLeaderboard(itemsPerPage, offset)
 
-  const startIdx = (currentPage - 1) * itemsPerPage
-  const paginatedData = leaderboardData.slice(startIdx, startIdx + itemsPerPage)
+  if (loading) {
+    return (
+      <AuthenticatedLayout>
+        <main className="px-4 sm:px-6 lg:px-8 pb-20">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl font-bold text-white mb-8">Leaderboard</h1>
+            <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-8">
+              <div className="text-center text-gray-400">Loading leaderboard...</div>
+            </div>
+          </div>
+        </main>
+      </AuthenticatedLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <AuthenticatedLayout>
+        <main className="px-4 sm:px-6 lg:px-8 pb-20">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl font-bold text-white mb-8">Leaderboard</h1>
+            <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-8">
+              <div className="text-center text-red-400">Error loading leaderboard: {error}</div>
+            </div>
+          </div>
+        </main>
+      </AuthenticatedLayout>
+    )
+  }
+
+  const leaderboardData = data?.leaderboard || []
 
   return (
-    <div className="min-h-screen bg-black">
-      <AppHeader />
-
-      <main className="pt-20 px-4 sm:px-6 lg:px-8 pb-20">
+    <AuthenticatedLayout>
+      <main className="px-4 sm:px-6 lg:px-8 pb-20">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold text-white mb-8">Global Leaderboard</h1>
 
@@ -40,14 +62,13 @@ export default function LeaderboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((player) => (
+                {leaderboardData.map((player) => (
                   <tr key={player.rank} className="border-b border-cyan-500/10 hover:bg-black/50 transition-colors">
                     <td className="px-6 py-4 text-white font-bold">#{player.rank}</td>
                     <td className="px-6 py-4 text-white">{player.username}</td>
                     <td className="px-6 py-4 text-cyan-400 font-bold">{player.elo}</td>
-                    <td className={`px-6 py-4 font-bold ${player.change > 0 ? "text-green-400" : "text-red-400"}`}>
-                      {player.change > 0 ? "+" : ""}
-                      {player.change}
+                    <td className="px-6 py-4 text-gray-400">
+                      -
                     </td>
                     <td className="px-6 py-4 text-white">{player.wins}</td>
                   </tr>
@@ -104,8 +125,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </main>
-
-      <MainFooter />
-    </div>
+    </AuthenticatedLayout>
   )
 }

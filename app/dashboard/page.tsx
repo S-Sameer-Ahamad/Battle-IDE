@@ -1,19 +1,41 @@
 "use client"
 
 import { useState } from "react"
-import AppHeader from "@/components/app-header"
-import MainFooter from "@/components/main-footer"
+import { useRouter } from "next/navigation"
+import AuthenticatedLayout from "@/components/authenticated-layout"
 import MatchmakingModal from "@/components/matchmaking-modal"
+import UserSearchModal from "@/components/user-search-modal"
 import { FriendlyMatchCard, CustomRoomCard } from "@/components/dashboard-cards"
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [isMatchmakingOpen, setIsMatchmakingOpen] = useState(false)
+  const [isUserSearchOpen, setIsUserSearchOpen] = useState(false)
+  const [searchMode, setSearchMode] = useState<"invite" | "friend">("invite")
+
+  const handleInviteUser = () => {
+    setSearchMode("invite")
+    setIsUserSearchOpen(true)
+  }
+
+  const handleAddFriend = () => {
+    setSearchMode("friend")
+    setIsUserSearchOpen(true)
+  }
+
+  const handleUserInvite = (userId: string) => {
+    // TODO: Implement user invitation logic
+    console.log("Inviting user:", userId)
+  }
+
+  const handleAddFriendAction = (userId: string) => {
+    // TODO: Implement add friend logic
+    console.log("Adding friend:", userId)
+  }
 
   return (
-    <div className="min-h-screen bg-black">
-      <AppHeader />
-
-      <main className="pt-20 px-4 sm:px-6 lg:px-8 pb-20">
+    <AuthenticatedLayout>
+      <main className="px-4 sm:px-6 lg:px-8 pb-20">
         <div className="max-w-7xl mx-auto">
           {/* Welcome Section */}
           <div className="mb-12">
@@ -41,7 +63,7 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              <FriendlyMatchCard />
+              <FriendlyMatchCard onInviteUser={handleInviteUser} />
               <CustomRoomCard />
             </div>
 
@@ -82,16 +104,52 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+                <button
+                  onClick={() => router.push("/leaderboard")}
+                  className="w-full mt-4 py-2 text-sm border border-cyan-500/30 text-cyan-400 rounded hover:bg-black/50 transition-colors"
+                >
+                  View Full Leaderboard
+                </button>
+              </div>
+
+              {/* Recent Matches */}
+              <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-white mb-4">Recent Matches</h3>
+                <div className="space-y-3">
+                  {[
+                    { opponent: "CodeMaster", result: "Won", elo: "+15", time: "2h ago" },
+                    { opponent: "AlgoNinja", result: "Lost", elo: "-12", time: "1d ago" },
+                    { opponent: "DataWizard", result: "Won", elo: "+18", time: "2d ago" },
+                  ].map((match, index) => (
+                    <div key={index} className="flex justify-between items-center p-2 bg-black/50 rounded">
+                      <div>
+                        <div className="text-white text-sm font-semibold">vs {match.opponent}</div>
+                        <div className="text-xs text-gray-400">{match.time}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-sm font-bold ${match.result === "Won" ? "text-green-400" : "text-red-400"}`}>
+                          {match.result}
+                        </div>
+                        <div className="text-xs text-gray-400">{match.elo}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </main>
 
-      <MainFooter />
-
-      {/* Matchmaking Modal */}
+      {/* Modals */}
       <MatchmakingModal isOpen={isMatchmakingOpen} onClose={() => setIsMatchmakingOpen(false)} />
-    </div>
+      <UserSearchModal
+        isOpen={isUserSearchOpen}
+        onClose={() => setIsUserSearchOpen(false)}
+        mode={searchMode}
+        onInvite={handleUserInvite}
+        onAddFriend={handleAddFriendAction}
+      />
+    </AuthenticatedLayout>
   )
 }
