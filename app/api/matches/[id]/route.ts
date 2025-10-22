@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const match = await prisma.match.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         problem: true,
         participants: {
@@ -54,14 +55,15 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const { status, startedAt, endedAt } = body
 
     const match = await prisma.match.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(status && { status }),
         ...(startedAt && { startedAt: new Date(startedAt) }),

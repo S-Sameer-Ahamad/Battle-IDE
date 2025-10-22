@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { verifyPassword } from '@/lib/password'
+import { generateToken } from '@/lib/jwt'
+import { setAuthCookie, sanitizeUser } from '@/lib/auth'
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(1),
 })
 
 export async function POST(request: NextRequest) {
@@ -19,34 +22,52 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: 'Invalid email or password' },
         { status: 401 }
       )
     }
 
-    // TODO: Add proper password hashing and verification
-    // For now, we'll just check if user exists
-    // In production, use bcrypt or similar
+    // Verify password
+    const isValidPassword = await verifyPassword(password, user.password)
 
-    // Return user data (without sensitive info)
-    const { id, username, email: userEmail, elo, wins, losses, bio } = user
+    if (!isValidPassword) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
 
-    return NextResponse.json({
-      user: {
-        id,
-        username,
-        email: userEmail,
-        elo,
-        wins,
-        losses,
-        bio,
-      },
+    // Generate JWT token
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      username: user.username,
     })
+
+    // Create response with user data
+    const response = NextResponse.json({
+      success: true,
+      message: 'Login successful',
+      user: sanitizeUser(user),
+    })
+
+    // Set auth cookie
+    setAuthCookie(response, token)
+
+    return response
   } catch (error) {
     console.error('Login error:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation error', details: error.errors },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Invalid request' },
-      { status: 400 }
+      { error: 'An error occurred during login' },
+      { status: 500 }
     )
   }
 }

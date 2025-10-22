@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 
 const joinMatchSchema = z.object({
   userId: z.string(),
@@ -9,15 +10,16 @@ const joinMatchSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const { userId, isHost } = joinMatchSchema.parse(body)
 
     // Check if match exists and is in waiting status
     const match = await prisma.match.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!match) {
@@ -38,7 +40,7 @@ export async function POST(
     const existingParticipant = await prisma.matchParticipant.findUnique({
       where: {
         matchId_userId: {
-          matchId: params.id,
+          matchId: id,
           userId,
         },
       },
@@ -54,7 +56,7 @@ export async function POST(
     // Add user to match
     const participant = await prisma.matchParticipant.create({
       data: {
-        matchId: params.id,
+        matchId: id,
         userId,
         isHost,
       },
@@ -71,6 +73,21 @@ export async function POST(
 
     return NextResponse.json({ participant })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: error.flatten() },
+        { status: 400 }
+      )
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Unique constraint violation, etc.
+      if (error.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'User is already in this match' },
+          { status: 400 }
+        )
+      }
+    }
     console.error('Error joining match:', error)
     return NextResponse.json(
       { error: 'Failed to join match' },

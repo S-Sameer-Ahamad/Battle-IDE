@@ -28,3 +28,20 @@ Continue building your app on:
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+## Environment Setup
+
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Get your API keys:
+   - **Judge0 CE API Key**: Get it from [RapidAPI - Judge0 CE](https://rapidapi.com/judge0-official/api/judge0-ce)
+
+3. Update your `.env` file with your API keys:
+   ```env
+   JUDGE0_API_KEY=your-rapidapi-key-here
+   ```
+
+⚠️ **Important**: Never commit your `.env` file or expose your API keys in the code or public repositories.

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 
 interface MatchmakingModalProps {
   isOpen: boolean
@@ -10,9 +11,11 @@ interface MatchmakingModalProps {
 
 export default function MatchmakingModal({ isOpen, onClose }: MatchmakingModalProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [state, setState] = useState<"searching" | "found">("searching")
   const [eloWindow, setEloWindow] = useState(100)
   const [countdown, setCountdown] = useState(5)
+  const startedRef = useRef(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -26,16 +29,53 @@ export default function MatchmakingModal({ isOpen, onClose }: MatchmakingModalPr
   }, [isOpen])
 
   useEffect(() => {
-    if (state !== "found") return
+  if (state !== "found") return
 
     // Countdown timer
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
       return () => clearTimeout(timer)
     } else {
-      // Auto-start match
-      router.push("/match/1")
-      onClose()
+      // Auto-start: create a match and join with current user
+      (async () => {
+        if (startedRef.current) return
+        startedRef.current = true
+        try {
+          if (!user?.id) {
+            console.error('No authenticated user; cannot start match')
+            onClose()
+            return
+          }
+          // Create a simple 1v1 match with a random existing problem (fallback id: 1)
+          const problemId = 1
+          const createRes = await fetch('/api/matches', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ problemId, type: '1v1' })
+          })
+          const createData = await createRes.json()
+          if (!createRes.ok) throw new Error(createData.error || 'Failed to create match')
+
+          const matchId = createData.match.id as string
+
+          // Join match as current user
+          const joinRes = await fetch(`/api/matches/${matchId}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user?.id, isHost: true })
+          })
+          if (!joinRes.ok) {
+            const err = await joinRes.json().catch(() => ({}))
+            throw new Error(err.error || 'Failed to join match')
+          }
+
+          router.push(`/match/${matchId}`)
+          onClose()
+        } catch (e) {
+          console.error('Failed to auto-start match:', e)
+          onClose()
+        }
+      })()
     }
   }, [state, countdown, router, onClose])
 

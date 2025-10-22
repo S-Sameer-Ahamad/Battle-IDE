@@ -223,6 +223,50 @@ Notice that the answer must be a substring, "pwke" is a subsequence and not a su
   console.log("Database seeded successfully!")
   console.log(`Created ${problems.length} problems`)
   console.log(`Created ${users.length} users`)
+
+  // Create sample matches for testing
+  const match1 = await prisma.match.create({
+    data: {
+      problemId: problems[0].id,
+      type: '1v1',
+      status: 'in_progress',
+      roomCode: 'TEST01',
+      startedAt: new Date(),
+      participants: {
+        create: [
+          {
+            userId: users[1].id,
+            isHost: true
+          },
+          {
+            userId: users[2].id,
+            isHost: false
+          }
+        ]
+      }
+    }
+  })
+
+  const match2 = await prisma.match.create({
+    data: {
+      problemId: problems[1].id,
+      type: '1v1',
+      status: 'waiting',
+      roomCode: 'TEST02',
+      participants: {
+        create: [
+          {
+            userId: users[3].id,
+            isHost: true
+          }
+        ]
+      }
+    }
+  })
+
+  console.log(`Created 2 sample matches:`)
+  console.log(`  - Match 1 (${match1.id}): In Progress - ${users[1].username} vs ${users[2].username}`)
+  console.log(`  - Match 2 (${match2.id}): Waiting - ${users[3].username} (looking for opponent)`)
 }
 
 main()

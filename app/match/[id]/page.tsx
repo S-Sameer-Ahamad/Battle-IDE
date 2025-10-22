@@ -2,32 +2,95 @@
 
 import { useState, useEffect, use } from "react"
 import MonacoEditorWrapper from "@/components/monaco-editor-wrapper"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
+
+interface Problem {
+  id: string
+  title: string
+  difficulty: string
+  description: string
+  examples: any
+  testCases: any
+  timeLimit: number
+  memoryLimit: number
+}
+
+interface Match {
+  id: string
+  problemId: string
+  status: string
+  timeLimit: number
+  problem: Problem
+}
+
+// Helper function to get default code templates
+function getDefaultCode(language: string, problem: Problem): string {
+  const templates: Record<string, string> = {
+    python: `def solution():\n    # Your code here\n    pass\n`,
+    javascript: `function solution() {\n  // Your code here\n  return null;\n}`,
+    java: `public class Solution {\n    public void solution() {\n        // Your code here\n    }\n}`,
+    cpp: `#include <iostream>\nusing namespace std;\n\nint main() {\n    // Your code here\n    return 0;\n}`,
+  }
+  return templates[language] || templates.python
+}
 
 export default function BattleScreen({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const [selectedLanguage, setSelectedLanguage] = useState("javascript")
-  const [code, setCode] = useState(`function twoSum(nums, target) {
-  // Your code here
-  return [];
-}`)
+  const router = useRouter()
+  const { user } = useAuth()
+  const [match, setMatch] = useState<Match | null>(null)
+  const [selectedLanguage, setSelectedLanguage] = useState("python")
+  const [code, setCode] = useState("")
   const [activeTab, setActiveTab] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(600) // 10 minutes
-  const [testResults, setTestResults] = useState([
-    { id: 1, input: "nums = [2,7,11,15], target = 9", expected: "[0,1]", actual: "", status: "pending" },
-    { id: 2, input: "nums = [3,2,4], target = 6", expected: "[1,2]", actual: "", status: "pending" },
-    { id: 3, input: "nums = [3,3], target = 6", expected: "[0,1]", actual: "", status: "pending" },
-  ])
-  const [opponentProgress, setOpponentProgress] = useState({
-    name: "DevNinja",
-    elo: 1820,
-    testsPassed: 3,
-    totalTests: 5,
-    status: "Coding...",
-    lastUpdate: "2s ago"
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  // Mock data for now (WebSocket will be implemented later)
+  const [connected] = useState(true)
+  const [battleState] = useState({
+    matchId: id,
+    participants: [
+      { userId: user?.id || '1', username: user?.username || 'You', elo: user?.elo || 1200 },
+      { userId: '2', username: 'Opponent', elo: 1350 }
+    ],
+    status: 'active' as const,
+    startedAt: new Date()
   })
+  const [messages] = useState([])
+  const [submissions] = useState([])
+
+  // Fetch match and problem data
+  useEffect(() => {
+    const fetchMatch = async () => {
+      try {
+        const response = await fetch(`/api/matches/${id}`)
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(`Match not found: ${errorData.error || 'Unknown error'}`)
+        }
+        
+        const data = await response.json()
+        setMatch(data.match) // Fix: API returns { match } object
+        setTimeLeft(data.match.problem.timeLimit * 60) // Convert minutes to seconds
+        
+        // Set default code based on language and problem
+        const defaultCode = getDefaultCode(selectedLanguage, data.match.problem)
+        setCode(defaultCode)
+        setLoading(false)
+      } catch (error) {
+        console.error('Failed to fetch match:', error)
+        router.push('/dashboard')
+      }
+    }
+    fetchMatch()
+  }, [id, router, selectedLanguage])
 
   // Timer countdown
   useEffect(() => {
+    if (timeLeft === 0) return
+    
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 0) {
@@ -39,7 +102,7 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [])
+  }, [timeLeft])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -47,26 +110,43 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleRunCode = (code: string) => {
-    // Simulate running test cases
-    setTestResults(prev => prev.map(test => ({
-      ...test,
-      actual: test.id <= 2 ? test.expected : "[]", // Simulate some passing
-      status: test.id <= 2 ? "passed" : "failed"
-    })))
+  const handleRunCode = async (code: string) => {
+    // TODO: Run code locally without submitting
+    console.log("Running code:", code)
   }
 
-  const handleSubmitCode = (code: string) => {
+  const handleSubmitCode = async (code: string) => {
+    if (!match) return
     // TODO: Implement actual submission
-    console.log("Submitting code:", code)
+    console.log("Submitting code:", code, "Language:", selectedLanguage)
   }
 
   const languages = [
-    { value: "javascript", label: "JavaScript" },
     { value: "python", label: "Python" },
+    { value: "javascript", label: "JavaScript" },
     { value: "java", label: "Java" },
     { value: "cpp", label: "C++" },
   ]
+
+  // Get participants from battleState
+  const participants = battleState?.participants || []
+  const opponent = participants.find(p => p.userId !== user?.id)
+  const currentUser = participants.find(p => p.userId === user?.id)
+  
+  // Get opponent's latest submission
+  const opponentSubmissions = submissions.filter(s => s.userId !== user?.id)
+  const latestOpponentSubmission = opponentSubmissions[opponentSubmissions.length - 1]
+
+  if (loading || !match) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-xl">Loading battle...</div>
+      </div>
+    )
+  }
+
+  const problem = match.problem
+  const examples = typeof problem.examples === 'string' ? JSON.parse(problem.examples) : problem.examples
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -111,46 +191,30 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
           <div className="p-6">
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
-                <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-bold rounded">MEDIUM</span>
-                <span className="text-gray-400 text-sm">Problem #42</span>
+                <span className={`px-2 py-1 text-xs font-bold rounded ${
+                  problem.difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
+                  problem.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                  'bg-red-500/20 text-red-400'
+                }`}>
+                  {problem.difficulty.toUpperCase()}
+                </span>
+                <span className="text-gray-400 text-sm">Problem #{problem.id}</span>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-4">Two Sum</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">{problem.title}</h2>
             </div>
 
             <div className="space-y-6">
               <div>
                 <h3 className="text-white font-bold mb-3">Description</h3>
-                <p className="text-gray-300 leading-relaxed">
-                  Given an array of integers <code className="bg-black/50 px-1 rounded">nums</code> and an integer <code className="bg-black/50 px-1 rounded">target</code>, 
-                  return indices of the two numbers such that they add up to <code className="bg-black/50 px-1 rounded">target</code>.
-                </p>
-                <p className="text-gray-300 leading-relaxed mt-3">
-                  You may assume that each input would have <strong>exactly one solution</strong>, and you may not use the same element twice.
-                </p>
-                <p className="text-gray-300 leading-relaxed mt-3">
-                  You can return the answer in any order.
-                </p>
+                <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {problem.description}
+                </div>
               </div>
 
               <div>
                 <h3 className="text-white font-bold mb-3">Examples</h3>
-                <div className="space-y-4">
-                  <div className="bg-black/30 p-4 rounded-lg">
-                    <div className="text-gray-400 text-sm mb-2">Example 1:</div>
-                    <div className="text-gray-300">
-                      <div><strong>Input:</strong> nums = [2,7,11,15], target = 9</div>
-                      <div><strong>Output:</strong> [0,1]</div>
-                      <div className="text-gray-400 text-sm mt-1">Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-black/30 p-4 rounded-lg">
-                    <div className="text-gray-400 text-sm mb-2">Example 2:</div>
-                    <div className="text-gray-300">
-                      <div><strong>Input:</strong> nums = [3,2,4], target = 6</div>
-                      <div><strong>Output:</strong> [1,2]</div>
-                    </div>
-                  </div>
+                <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {problem.examples}
                 </div>
               </div>
 
@@ -240,48 +304,58 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
         <div className="w-1/4 overflow-y-auto">
           <div className="p-6 space-y-6">
             {/* Opponent Section */}
-            <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-4">
-              <h3 className="text-white font-bold mb-4">Opponent</h3>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-magenta-secondary flex items-center justify-center text-white font-bold">
-                  {opponentProgress.name.substring(0, 2).toUpperCase()}
+            {opponent && (
+              <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-4">
+                <h3 className="text-white font-bold mb-4">Opponent</h3>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-magenta-secondary flex items-center justify-center text-white font-bold">
+                    {opponent.username.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">{opponent.username}</div>
+                    <div className="text-gray-400 text-sm">Elo: {opponent.elo || 1500}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-white font-semibold">{opponentProgress.name}</div>
-                  <div className="text-gray-400 text-sm">Elo: {opponentProgress.elo}</div>
-                </div>
+                
+                {latestOpponentSubmission && (
+                  <div className="text-sm">
+                    <div className="text-gray-400">Latest submission:</div>
+                    <div className="text-cyan-400">{latestOpponentSubmission.language}</div>
+                    <div className="text-gray-500">
+                      {new Date(latestOpponentSubmission.timestamp).toLocaleTimeString()}
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              <div className="mb-2">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-400">Progress</span>
-                  <span className="text-cyan-400">{opponentProgress.testsPassed}/{opponentProgress.totalTests}</span>
-                </div>
-                <div className="w-full bg-black/50 rounded-full h-2">
-                  <div 
-                    className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(opponentProgress.testsPassed / opponentProgress.totalTests) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              <div className="text-sm">
-                <div className="text-gray-400">Status: <span className="text-cyan-400">{opponentProgress.status}</span></div>
-                <div className="text-gray-500">Last update: {opponentProgress.lastUpdate}</div>
-              </div>
-            </div>
+            )}
 
             {/* Your Progress */}
+            {currentUser && (
+              <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-4">
+                <h3 className="text-white font-bold mb-4">Your Progress</h3>
+                <div className="mb-2">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-400">Submissions</span>
+                    <span className="text-green-400">
+                      {submissions.filter(s => s.userId === user?.id).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Participants */}
             <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-4">
-              <h3 className="text-white font-bold mb-4">Your Progress</h3>
-              <div className="mb-2">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-400">Tests Passed</span>
-                  <span className="text-green-400">2/5</span>
-                </div>
-                <div className="w-full bg-black/50 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full transition-all duration-300" style={{ width: '40%' }}></div>
-                </div>
+              <h3 className="text-white font-bold mb-4">Participants ({participants.length})</h3>
+              <div className="space-y-3">
+                {participants.map((participant, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${participant.userId === user?.id ? 'bg-cyan-500' : 'bg-magenta-secondary'}`}></div>
+                    <span className="text-gray-300 text-sm">
+                      {participant.username} {participant.userId === user?.id && '(You)'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -289,24 +363,17 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
             <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-4">
               <h3 className="text-white font-bold mb-4">Activity</h3>
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                  <span className="text-gray-300 text-sm">Opponent submitted - 3/5 passed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-gray-300 text-sm">You submitted - 4/5 passed</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-gray-300 text-sm">1,247 spectators watching</span>
-                </div>
-              </div>
-              
-              <div className="mt-4 text-center">
-                <div className="text-2xl font-bold text-cyan-400">1,247</div>
-                <div className="text-gray-400 text-sm">Spectators</div>
-                <div className="text-gray-500 text-xs">Watching this epic battle</div>
+                {submissions.slice(-5).reverse().map((submission, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${submission.userId === user?.id ? 'bg-cyan-500' : 'bg-magenta-secondary'}`}></div>
+                    <span className="text-gray-300 text-sm">
+                      {submission.userId === user?.id ? 'You' : 'Opponent'} submitted
+                    </span>
+                  </div>
+                ))}
+                {submissions.length === 0 && (
+                  <div className="text-gray-500 text-sm">No activity yet</div>
+                )}
               </div>
             </div>
           </div>

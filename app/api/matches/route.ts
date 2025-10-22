@@ -64,12 +64,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const type = searchParams.get('type')
+  const roomCode = searchParams.get('roomCode')
     const limit = parseInt(searchParams.get('limit') || '10')
     const offset = parseInt(searchParams.get('offset') || '0')
 
     const where: any = {}
     if (status) where.status = status
     if (type) where.type = type
+  if (roomCode) where.roomCode = roomCode
 
     const matches = await prisma.match.findMany({
       where,
@@ -94,6 +96,9 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+        },
+        _count: {
+          select: { participants: true },
         },
       },
     })

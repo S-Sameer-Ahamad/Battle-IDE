@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { judge0Service, SUPPORTED_LANGUAGES } from '@/lib/judge0'
 
 const createSubmissionSchema = z.object({
   matchId: z.string(),
@@ -17,6 +18,9 @@ export async function POST(request: NextRequest) {
     // Verify match exists and is active
     const match = await prisma.match.findUnique({
       where: { id: matchId },
+      include: {
+        problem: true,
+      },
     })
 
     if (!match) {
@@ -33,11 +37,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Add code execution and testing logic here
-    // For now, we'll simulate test results
-    const testCasesPassed = Math.floor(Math.random() * 5) + 1 // Random 1-5
-    const totalTestCases = 5
-    const status = testCasesPassed === totalTestCases ? 'accepted' : 'wrong_answer'
+    // Verify language is supported
+    const languageId = SUPPORTED_LANGUAGES[language as keyof typeof SUPPORTED_LANGUAGES]
+    if (!languageId) {
+      return NextResponse.json(
+        { error: 'Unsupported programming language' },
+        { status: 400 }
+      )
+    }
+
+    // Parse test cases from the problem
+    const testCases = JSON.parse(match.problem.testCases)
+
+    // Execute code against test cases
+    const { passed, results, passedCount, totalCount } = await judge0Service.validateTestCases(
+      code,
+      languageId,
+      testCases
+    )
+
+    // Calculate statistics
+    let status = 'wrong_answer'
+    let executionTime = 0
+
+    // Determine submission status and get max execution time
+    if (passed) {
+      status = 'accepted'
+    } else {
+      const errorResult = results.find(r => r.status.id !== 3)
+      if (errorResult) {
+        if (errorResult.status.id === 5) status = 'time_limit'
+        else if (errorResult.status.id === 6) status = 'memory_limit'
+        else if (errorResult.status.id === 7) status = 'runtime_error'
+        else if (errorResult.status.id === 11) status = 'compilation_error'
+      }
+    }
+
+    // Get maximum execution time from all test cases
+    executionTime = Math.max(...results.map(r => parseFloat(r.time || '0')))
 
     // Create submission
     const submission = await prisma.submission.create({
@@ -47,9 +84,9 @@ export async function POST(request: NextRequest) {
         code,
         language,
         status,
-        testCasesPassed,
-        totalTestCases,
-        executionTime: Math.floor(Math.random() * 1000) + 100, // Random 100-1100ms
+        testCasesPassed: passedCount,
+        totalTestCases: totalCount,
+        executionTime: Math.round(executionTime * 1000), // Convert to milliseconds
       },
       include: {
         user: {
@@ -67,7 +104,10 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ submission })
+    return NextResponse.json({ 
+      submission,
+      executionResults: results
+    })
   } catch (error) {
     console.error('Error creating submission:', error)
     return NextResponse.json(

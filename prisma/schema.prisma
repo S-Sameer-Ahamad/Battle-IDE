@@ -14,10 +14,25 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   username  String   @unique
+  password  String?  // Optional for OAuth users
   bio       String?
   elo       Int      @default(1200)
   wins      Int      @default(0)
   losses    Int      @default(0)
+  
+  // Email verification
+  emailVerified Boolean  @default(false)
+  verificationToken String?
+  verificationTokenExpires DateTime?
+  
+  // Password reset
+  resetToken String?
+  resetTokenExpires DateTime?
+  
+  // OAuth
+  googleId  String?  @unique
+  avatarUrl String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -58,6 +73,9 @@ model Match {
   type      String   // "1v1", "group"
   status    String   @default("waiting") // waiting, active, completed, cancelled
   roomCode  String?  // For group matches
+  winnerId  String?  // ID of the user who won
+  timeLimit Int      @default(15) // Time limit in minutes
+  maxParticipants Int @default(2) // Maximum number of participants
   createdAt DateTime @default(now())
   startedAt DateTime?
   endedAt   DateTime?
@@ -92,9 +110,10 @@ model Submission {
   code             String
   language         String
   status           String   @default("pending") // pending, accepted, wrong_answer, time_limit, runtime_error
-  testCasesPassed  Int      @default(0)
-  totalTestCases   Int      @default(0)
-  executionTime    Int?     // in milliseconds
+  passedTests      Int      @default(0)
+  totalTests       Int      @default(0)
+  executionTime    Float    @default(0) // in milliseconds
+  memory           Int      @default(0) // in KB
   submittedAt      DateTime @default(now())
 
   // Relations
