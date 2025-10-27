@@ -188,24 +188,25 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* Confetti Effect */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
-          {[...Array(50)].map((_, i) => (
+          {[...Array(100)].map((_, i) => (
             <div
               key={i}
               className="absolute"
               style={{
                 left: `${Math.random() * 100}%`,
                 top: '-10px',
-                animation: `fall ${3 + Math.random() * 2}s linear ${Math.random() * 2}s forwards`,
+                animation: `fall ${3 + Math.random() * 3}s linear ${Math.random() * 4}s forwards`,
               }}
             >
               <div
-                className="w-3 h-3 rounded-full"
+                className="w-2 h-3"
                 style={{
-                  backgroundColor: ['#00ffff', '#ff00ff', '#ffff00', '#00ff00'][Math.floor(Math.random() * 4)],
+                  transform: `rotate(${Math.random() * 360}deg)`,
+                  backgroundColor: ['#00FFFF', '#FF00FF', '#FFD700'][Math.floor(Math.random() * 3)],
                 }}
               />
             </div>
@@ -213,62 +214,62 @@ export default function ResultsPage() {
         </div>
       )}
 
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold mb-4">
-            {isWinner ? '🏆 Victory!' : '💪 Good Fight!'}
+        <div className="text-center mb-12">
+          <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-magenta-secondary bg-clip-text text-transparent">
+            {isWinner ? 'Victory!' : 'Good Fight!'}
           </h1>
           <p className="text-2xl text-gray-300">
-            {winner?.user.username} <span className="text-cyan-400">defeated</span> {loser?.user.username}
+            {winner?.user.username} <span className="text-gray-500">defeated</span> {loser?.user.username}
           </p>
-          <p className="text-gray-400 mt-2">
+          <p className="text-gray-400 mt-3">
             Problem: <span className={getDifficultyColor(match.problem.difficulty)}>{match.problem.title}</span>
           </p>
         </div>
 
         {/* Match Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 text-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-6 text-center">
             <div className="text-gray-400 text-sm mb-2">Match Duration</div>
             <div className="text-3xl font-bold text-cyan-400">{formatDuration(matchDuration)}</div>
           </div>
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 text-center">
+          <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-6 text-center">
             <div className="text-gray-400 text-sm mb-2">Total Submissions</div>
-            <div className="text-3xl font-bold text-purple-400">{match.submissions.length}</div>
+            <div className="text-3xl font-bold text-magenta-secondary">{match.submissions.length}</div>
           </div>
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 text-center">
+          <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-6 text-center">
             <div className="text-gray-400 text-sm mb-2">Match Type</div>
-            <div className="text-3xl font-bold text-pink-400">{match.type === '1v1' ? '1v1 Duel' : 'Group Battle'}</div>
+            <div className="text-3xl font-bold text-white">{match.type === '1v1' ? '1v1 Duel' : 'Group Battle'}</div>
           </div>
         </div>
 
         {/* ELO Changes */}
         {match.type === '1v1' && winner && loser && (
-          <div className="bg-gradient-to-r from-cyan-900/30 to-purple-900/30 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-8 mb-8">
-            <h2 className="text-3xl font-bold text-center mb-6 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-8 mb-10">
+            <h2 className="text-3xl font-bold text-center mb-6 text-white">
               Rating Changes
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Winner */}
-              <div className="bg-gray-800/50 rounded-lg p-6 border-2 border-green-500/50">
+              <div className="bg-black/30 rounded-lg p-6 border border-green-500/30">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-xl font-bold">{winner.user.username}</div>
-                    <div className="text-sm text-gray-400">Winner</div>
+                    <div className="text-sm text-green-400">Winner</div>
                   </div>
                   <div className="text-4xl">🏆</div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-gray-400">Rating</div>
-                    <div className="text-2xl font-bold text-cyan-400">
+                    <div className="text-sm text-gray-400">New Rating</div>
+                    <div className="text-2xl font-bold text-white">
                       {winner.user.elo}
                       <span className="text-green-400 text-lg ml-2">+10</span>
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-400">Tier</div>
+                    <div className="text-sm text-gray-400">New Tier</div>
                     <div
                       className="text-lg font-bold"
                       style={{ color: getRatingColor(winner.user.elo) }}
@@ -280,24 +281,24 @@ export default function ResultsPage() {
               </div>
 
               {/* Loser */}
-              <div className="bg-gray-800/50 rounded-lg p-6 border-2 border-red-500/50">
+              <div className="bg-black/30 rounded-lg p-6 border border-red-500/30">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-xl font-bold">{loser.user.username}</div>
-                    <div className="text-sm text-gray-400">Defeated</div>
+                    <div className="text-sm text-red-400">Defeated</div>
                   </div>
                   <div className="text-4xl">💔</div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-gray-400">Rating</div>
-                    <div className="text-2xl font-bold text-cyan-400">
+                    <div className="text-sm text-gray-400">New Rating</div>
+                    <div className="text-2xl font-bold text-white">
                       {loser.user.elo}
                       <span className="text-red-400 text-lg ml-2">-10</span>
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-400">Tier</div>
+                    <div className="text-sm text-gray-400">New Tier</div>
                     <div
                       className="text-lg font-bold"
                       style={{ color: getRatingColor(loser.user.elo) }}
@@ -313,14 +314,14 @@ export default function ResultsPage() {
 
         {/* Code Comparison */}
         {winnerSubmission && loserSubmission && (
-          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-6 text-center">Code Comparison</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-8 mb-10">
+            <h2 className="text-3xl font-bold mb-8 text-center text-white">Code Comparison</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Winner's Code */}
               <div>
                 <div className="flex items-center justify-between mb-3 px-2">
                   <div>
-                    <div className="text-lg font-bold text-green-400">{winner?.user.username}</div>
+                    <div className="text-lg font-bold text-green-400">{winner?.user.username}'s Code</div>
                     <div className="text-sm text-gray-400">{winnerSubmission.language}</div>
                   </div>
                   <div className="text-right">
@@ -343,6 +344,7 @@ export default function ResultsPage() {
                       minimap: { enabled: false },
                       fontSize: 14,
                       scrollBeyondLastLine: false,
+                      wordWrap: 'on',
                     }}
                   />
                 </div>
@@ -352,7 +354,7 @@ export default function ResultsPage() {
               <div>
                 <div className="flex items-center justify-between mb-3 px-2">
                   <div>
-                    <div className="text-lg font-bold text-red-400">{loser?.user.username}</div>
+                    <div className="text-lg font-bold text-red-400">{loser?.user.username}'s Code</div>
                     <div className="text-sm text-gray-400">{loserSubmission.language}</div>
                   </div>
                   <div className="text-right">
@@ -375,6 +377,7 @@ export default function ResultsPage() {
                       minimap: { enabled: false },
                       fontSize: 14,
                       scrollBeyondLastLine: false,
+                      wordWrap: 'on',
                     }}
                   />
                 </div>
@@ -384,15 +387,15 @@ export default function ResultsPage() {
         )}
 
         {/* Submission History */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold mb-4">Submission History</h2>
-          <div className="space-y-3">
+        <div className="bg-accent-card border border-cyan-500/20 rounded-lg p-8 mb-12">
+          <h2 className="text-3xl font-bold mb-6 text-white">Submission History</h2>
+          <div className="space-y-4">
             {match.submissions.map((submission) => {
               const participant = match.participants.find(p => p.userId === submission.userId)
               return (
                 <div
                   key={submission.id}
-                  className="bg-gray-700/30 rounded-lg p-4 flex items-center justify-between flex-wrap gap-4"
+                  className="bg-black/30 rounded-lg p-4 flex items-center justify-between flex-wrap gap-4 border border-cyan-500/10"
                 >
                   <div className="flex items-center gap-4">
                     <div className="text-2xl">
@@ -444,21 +447,19 @@ export default function ResultsPage() {
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <button
             onClick={handleRematch}
-            className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-700 hover:to-purple-700 text-white font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg"
+            className="px-8 py-3 rounded-lg font-bold text-lg transition-all duration-300 neon-glow"
+            style={{
+              background: "linear-gradient(135deg, #00FFFF, #FF007F)",
+              color: "#0A0A0F",
+            }}
           >
             ⚔️ Rematch
           </button>
           <button
-            onClick={() => router.push('/matchmaking')}
-            className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition-colors"
+            onClick={() => router.push('/dashboard')}
+            className="px-8 py-3 bg-accent-card border border-cyan-500/20 hover:border-cyan-500/40 text-white font-bold rounded-lg transition-colors"
           >
-            🏠 Back to Matchmaking
-          </button>
-          <button
-            onClick={() => router.push('/leaderboard')}
-            className="px-8 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-bold rounded-lg transition-all transform hover:scale-105 shadow-lg"
-          >
-            🏆 View Leaderboard
+            � Dashboard
           </button>
         </div>
       </div>
@@ -466,8 +467,12 @@ export default function ResultsPage() {
       <style jsx>{`
         @keyframes fall {
           to {
-            transform: translateY(100vh) rotate(360deg);
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
           }
+        }
+        .neon-glow {
+          box-shadow: 0 0 5px #00FFFF, 0 0 10px #00FFFF, 0 0 15px #FF007F, 0 0 20px #FF007F;
         }
       `}</style>
     </div>

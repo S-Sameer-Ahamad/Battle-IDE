@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth-context"
 
 interface User {
   id: string
@@ -18,26 +19,49 @@ interface UserSearchModalProps {
 }
 
 export default function UserSearchModal({ isOpen, onClose, onInvite, onAddFriend, mode }: UserSearchModalProps) {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
-  const [searchResults, setSearchResults] = useState<User[]>([
-    { id: "user1", username: "CodeMaster", elo: 1350, isOnline: true },
-    { id: "user2", username: "AlgoNinja", elo: 1280, isOnline: false },
-    { id: "user3", username: "DataWizard", elo: 1420, isOnline: true },
-  ])
+  const [searchResults, setSearchResults] = useState<User[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement actual user search API call
-    console.log("Searching for:", searchTerm)
-    // Filter mock results for demonstration
-    setSearchResults(
-      [
-        { id: "user1", username: "CodeMaster", elo: 1350, isOnline: true },
-        { id: "user2", username: "AlgoNinja", elo: 1280, isOnline: false },
-        { id: "user3", username: "DataWizard", elo: 1420, isOnline: true },
-      ].filter((user) => user.username.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    
+    if (!searchTerm.trim()) {
+      setSearchResults([])
+      setHasSearched(false)
+      return
+    }
+
+    setIsSearching(true)
+    setHasSearched(true)
+
+    try {
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchTerm)}&exclude=${user?.id || ''}`)
+      const data = await response.json()
+      
+      if (data.users) {
+        setSearchResults(data.users)
+      } else {
+        setSearchResults([])
+      }
+    } catch (error) {
+      console.error('Error searching users:', error)
+      setSearchResults([])
+    } finally {
+      setIsSearching(false)
+    }
   }
+
+  // Reset search when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchTerm("")
+      setSearchResults([])
+      setHasSearched(false)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -65,14 +89,22 @@ export default function UserSearchModal({ isOpen, onClose, onInvite, onAddFriend
           />
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg bg-cyan-500 text-black font-bold hover:bg-cyan-600 transition-colors"
+            disabled={isSearching}
+            className="px-4 py-2 rounded-lg bg-cyan-500 text-black font-bold hover:bg-cyan-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Search
+            {isSearching ? "..." : "Search"}
           </button>
         </form>
 
         <div className="max-h-60 overflow-y-auto space-y-3">
-          {searchResults.length > 0 ? (
+          {isSearching ? (
+            <div className="text-center text-gray-400 py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-2"></div>
+              Searching users...
+            </div>
+          ) : !hasSearched ? (
+            <p className="text-center text-gray-400 py-8">Enter a username to search</p>
+          ) : searchResults.length > 0 ? (
             searchResults.map((user) => (
               <div key={user.id} className="flex items-center justify-between p-3 bg-black/50 rounded-lg">
                 <div className="flex items-center gap-3">
@@ -103,7 +135,7 @@ export default function UserSearchModal({ isOpen, onClose, onInvite, onAddFriend
                       onAddFriend?.(user.id)
                       onClose()
                     }}
-                    className="px-3 py-1 text-xs bg-magenta-secondary text-black rounded hover:bg-magenta-primary"
+                    className="px-3 py-1 text-xs bg-cyan-500 text-black rounded hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
                   >
                     Add Friend
                   </button>
@@ -111,7 +143,7 @@ export default function UserSearchModal({ isOpen, onClose, onInvite, onAddFriend
               </div>
             ))
           ) : (
-            <p className="text-center text-gray-400">No users found.</p>
+            <p className="text-center text-gray-400 py-8">No users found matching &quot;{searchTerm}&quot;</p>
           )}
         </div>
       </div>

@@ -27,7 +27,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify password
+    // Verify password (check for null password - OAuth users)
+    if (!user.password) {
+      return NextResponse.json(
+        { error: 'Please use OAuth login for this account' },
+        { status: 401 }
+      )
+    }
+    
     const isValidPassword = await verifyPassword(password, user.password)
 
     if (!isValidPassword) {

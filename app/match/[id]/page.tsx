@@ -1,19 +1,25 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, use, useRef } from "react"
 import MonacoEditorWrapper from "@/components/monaco-editor-wrapper"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
+import { useBattleSocket } from "@/lib/use-battle-socket"
 
 interface Problem {
   id: string
   title: string
-  difficulty: string
   description: string
-  examples: any
-  testCases: any
+  difficulty: string
+  examples: string
+  testCases: string
   timeLimit: number
-  memoryLimit: number
+}
+
+interface Participant {
+  userId: string
+  username: string
+  elo: number
 }
 
 interface Match {
@@ -21,7 +27,29 @@ interface Match {
   problemId: string
   status: string
   timeLimit: number
+  startedAt: string | null
   problem: Problem
+  participants?: Array<{
+    user: {
+      id: string
+      username: string
+      elo: number
+    }
+  }>
+}
+
+interface Submission {
+  id: string
+  userId: string
+  matchId: string
+  problemId: string
+  code: string
+  language: string
+  status: string
+  passedTests: number
+  totalTests: number
+  executionTime: number | null
+  submittedAt: string
 }
 
 // Helper function to get default code templates
@@ -45,20 +73,25 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
   const [activeTab, setActiveTab] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [userMatchNumber, setUserMatchNumber] = useState<number>(0)
 
-  // Mock data for now (WebSocket will be implemented later)
-  const [connected] = useState(true)
-  const [battleState] = useState({
-    matchId: id,
-    participants: [
-      { userId: user?.id || '1', username: user?.username || 'You', elo: user?.elo || 1200 },
-      { userId: '2', username: 'Opponent', elo: 1350 }
-    ],
-    status: 'active' as const,
-    startedAt: new Date()
-  })
-  const [messages] = useState([])
-  const [submissions] = useState([])
+  // WebSocket integration for real-time updates
+  const {
+    connected,
+    battleState,
+    messages,
+    submissions: socketSubmissions,
+    sendMessage,
+    submitCode: submitCodeViaSocket,
+    startBattle,
+  } = useBattleSocket(id)
+
+  // Use real submissions from API or socket
+  const [localSubmissions, setLocalSubmissions] = useState<Submission[]>([])
+  const submissions = socketSubmissions.length > 0 ? socketSubmissions : localSubmissions
+
+  // For accurate timer sync across clients
+  const endTimeRef = useRef<number | null>(null)
 
   // Fetch match and problem data
   useEffect(() => {
@@ -72,8 +105,70 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
         }
         
         const data = await response.json()
-        setMatch(data.match) // Fix: API returns { match } object
-        setTimeLeft(data.match.problem.timeLimit * 60) // Convert minutes to seconds
+  setMatch(data.match) // Fix: API returns { match } object
+        
+        // Fetch user's match count
+        if (user?.id) {
+          try {
+            const userMatchesResponse = await fetch(`/api/users/${user.id}`)
+            const userData = await userMatchesResponse.json()
+            if (userData.user?._count?.matchParticipants) {
+              setUserMatchNumber(userData.user._count.matchParticipants)
+            }
+          } catch (err) {
+            console.error('Failed to fetch user match count:', err)
+          }
+        }
+        
+        // Load participants and submissions from API
+        if (data.match.submissions) {
+          setLocalSubmissions(data.match.submissions.map((s: any) => ({
+            id: s.id,
+            userId: s.userId,
+            code: s.code,
+            language: s.language,
+            status: s.status,
+            passedTests: s.passedTests,
+            totalTests: s.totalTests,
+            executionTime: s.executionTime,
+            memory: s.memory,
+            timestamp: s.submittedAt,
+            submittedAt: s.submittedAt,
+          })))
+        }
+        
+        // If match already started, compute a shared endTime; otherwise show full time but don't start countdown until start event
+        if (data.match.startedAt) {
+          const startTime = new Date(data.match.startedAt).getTime()
+          endTimeRef.current = startTime + data.match.timeLimit * 60 * 1000
+          const remaining = Math.max(0, Math.floor((endTimeRef.current - Date.now()) / 1000))
+          setTimeLeft(remaining)
+        } else {
+          // Not started yet; display full time but wait for battle_started to begin ticking
+          setTimeLeft(data.match.timeLimit * 60)
+          endTimeRef.current = null
+        }
+
+        // If the user isn't a participant yet and the match is waiting, auto-join via API
+        if (user?.id && data.match.status === 'waiting') {
+          const alreadyIn = (data.match.participants || []).some((p: any) => p.user?.id === user.id)
+          if (!alreadyIn) {
+            try {
+              const joinRes = await fetch(`/api/matches/${id}/join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, isHost: false }),
+              })
+              // Ignore 400 "already in" to be idempotent
+              if (!joinRes.ok && joinRes.status !== 400) {
+                const e = await joinRes.json().catch(() => ({}))
+                console.warn('Auto-join failed:', e.error || joinRes.status)
+              }
+            } catch (e) {
+              console.warn('Auto-join request error:', e)
+            }
+          }
+        }
         
         // Set default code based on language and problem
         const defaultCode = getDefaultCode(selectedLanguage, data.match.problem)
@@ -85,24 +180,42 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
       }
     }
     fetchMatch()
-  }, [id, router, selectedLanguage])
+  }, [id, router, selectedLanguage, user?.id])
 
-  // Timer countdown
+  // Timer countdown synced to endTimeRef to avoid drift and keep both clients aligned
   useEffect(() => {
-    if (timeLeft === 0) return
-    
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 0) {
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
+      if (!endTimeRef.current) return
+      const remaining = Math.max(0, Math.floor((endTimeRef.current - Date.now()) / 1000))
+      setTimeLeft(remaining)
     }, 1000)
-
     return () => clearInterval(timer)
-  }, [timeLeft])
+  }, [])
+
+  // When server announces battle start, sync timer to server start time
+  useEffect(() => {
+    if (!battleState?.startedAt || !match) return
+    const startMs = new Date(battleState.startedAt).getTime()
+    endTimeRef.current = startMs + match.timeLimit * 60 * 1000
+    const remaining = Math.max(0, Math.floor((endTimeRef.current - Date.now()) / 1000))
+    setTimeLeft(remaining)
+  }, [battleState?.startedAt, match?.timeLimit])
+
+  // Auto-start battle when both participants are present and we're still waiting
+  useEffect(() => {
+    if (!connected || !battleState || battleState.status !== 'waiting') return
+    const count = battleState.participants?.length || 0
+    if (count >= 2) {
+      startBattle?.()
+    }
+  }, [connected, battleState?.participants?.length, battleState?.status])
+
+  // Navigate to results when server marks battle completed
+  useEffect(() => {
+    if (battleState?.status === 'completed') {
+      router.push(`/match/${id}/results`)
+    }
+  }, [battleState?.status, id, router])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -116,9 +229,60 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
   }
 
   const handleSubmitCode = async (code: string) => {
-    if (!match) return
-    // TODO: Implement actual submission
-    console.log("Submitting code:", code, "Language:", selectedLanguage)
+    if (!match || !user) return
+    
+    // Validate code is not empty
+    if (!code || code.trim().length === 0) {
+      alert('Please write some code before submitting!')
+      return
+    }
+    
+    try {
+      // Submit via Socket.IO if connected
+      if (connected && submitCodeViaSocket) {
+        console.log('📤 Submitting via Socket.IO...')
+        submitCodeViaSocket(code, selectedLanguage)
+      } else {
+        console.log('📤 Submitting via API (socket not connected)...')
+        // Fallback to API if socket not connected
+        const response = await fetch('/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchId: id,
+            userId: user.id,
+            code,
+            language: selectedLanguage,
+          }),
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Submission failed')
+        }
+        
+        const result = await response.json()
+        console.log('Submission result:', result)
+        
+        // Update local submissions
+        setLocalSubmissions(prev => [...prev, {
+          id: result.submission.id,
+          userId: user.id,
+          matchId: id,
+          problemId: match?.problemId || '',
+          code,
+          language: selectedLanguage,
+          status: result.submission.status,
+          passedTests: result.submission.passedTests,
+          totalTests: result.submission.totalTests,
+          executionTime: result.submission.executionTime,
+          submittedAt: new Date().toISOString()
+        }])
+      }
+    } catch (error) {
+      console.error('Failed to submit code:', error)
+      alert('Failed to submit code. Please try again.')
+    }
   }
 
   const languages = [
@@ -128,13 +292,36 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
     { value: "cpp", label: "C++" },
   ]
 
-  // Get participants from battleState
-  const participants = battleState?.participants || []
+  // Get participants - use battleState from socket if available, otherwise from match data
+  const participants = battleState?.participants || 
+    (match?.participants?.map(p => ({
+      userId: p.user.id,
+      username: p.user.username,
+      elo: p.user.elo
+    })) ?? [])
+    
   const opponent = participants.find(p => p.userId !== user?.id)
   const currentUser = participants.find(p => p.userId === user?.id)
   
+  // Determine whether to show a pre-battle lobby (waiting for opponent)
+  const showLobby = (!match?.startedAt) && (battleState?.status !== 'active')
+  
+  const inviteUrl = typeof window !== 'undefined'
+    ? window.location.origin + `/match/${id}`
+    : `/match/${id}`
+  
+  const handleCopyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      alert('Invite link copied to clipboard!')
+    } catch (e) {
+      console.error('Failed to copy invite link:', e)
+      alert('Failed to copy link')
+    }
+  }
+  
   // Get opponent's latest submission
-  const opponentSubmissions = submissions.filter(s => s.userId !== user?.id)
+  const opponentSubmissions = submissions.filter((s: any) => s.userId !== user?.id)
   const latestOpponentSubmission = opponentSubmissions[opponentSubmissions.length - 1]
 
   if (loading || !match) {
@@ -146,18 +333,124 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
   }
 
   const problem = match.problem
-  const examples = typeof problem.examples === 'string' ? JSON.parse(problem.examples) : problem.examples
+  
+  // Safely parse examples - handle both JSON strings and plain text
+  let examples: any = []
+  try {
+    if (typeof problem.examples === 'string') {
+      // Try to parse as JSON first
+      try {
+        examples = JSON.parse(problem.examples)
+      } catch {
+        // If not valid JSON, treat as plain text/markdown
+        examples = [{ input: '', output: problem.examples }]
+      }
+    } else {
+      examples = problem.examples
+    }
+  } catch (err) {
+    console.error('Error parsing examples:', err)
+    examples = []
+  }
 
+  // Render LOBBY while waiting (no startedAt and not active via socket)
+  if (showLobby) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col">
+        <div className="bg-accent-card border-b border-cyan-500/20 px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-6">
+            <h1 className="text-white font-bold text-lg">Match Lobby</h1>
+            <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">Waiting for opponent…</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCopyInvite}
+              className="px-4 py-2 rounded-lg border border-cyan-500/30 text-white hover:bg-black/50"
+            >
+              Copy Invite Link
+            </button>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="px-4 py-2 rounded-lg border border-cyan-500/30 text-white hover:bg-black/50"
+            >
+              Leave
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-xl w-full bg-accent-card border border-cyan-500/20 rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-white mb-2">Invite your friend</h2>
+            <p className="text-gray-400 mb-6">
+              Share the link below. Once your friend joins, the battle will start automatically.
+            </p>
+            <div className="flex gap-3 mb-6">
+              <input
+                readOnly
+                value={inviteUrl}
+                className="flex-1 px-4 py-2 bg-black border border-cyan-500/30 rounded-lg text-white"
+              />
+              <button
+                onClick={handleCopyInvite}
+                className="px-4 py-2 rounded-lg border border-cyan-500/30 text-white hover:bg-black/50"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="bg-black/40 border border-cyan-500/10 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-white font-semibold">Participants</div>
+                <div className="text-gray-400 text-sm">{participants.length}/2</div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {participants.map((p, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                    <div className={`w-2 h-2 rounded-full ${p.userId === user?.id ? 'bg-cyan-500' : 'bg-magenta-secondary'}`}></div>
+                    <span>{p.username}{p.userId === user?.id ? ' (You)' : ''}</span>
+                  </div>
+                ))}
+                {participants.length < 2 && (
+                  <div className="text-gray-500 text-sm">Waiting for your friend to join…</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Otherwise render full battle screen (either active or startedAt present)
   return (
     <div className="min-h-screen bg-black flex flex-col">
       {/* Top Bar */}
       <div className="bg-accent-card border-b border-cyan-500/20 px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-6">
-          <h1 className="text-white font-bold text-lg">Match #{id}</h1>
+          <h1 className="text-white font-bold text-lg">
+            Match #{userMatchNumber > 0 ? userMatchNumber : '...'}
+          </h1>
           <div className="flex items-center gap-2">
             <span className="text-gray-400">Time:</span>
             <span className="text-cyan-400 font-bold text-lg">{formatTime(timeLeft)}</span>
           </div>
+          {/* Difficulty Badge */}
+          <span className={`px-2 py-1 text-xs font-bold rounded ${
+            problem.difficulty === 'Easy' ? 'bg-green-500/20 text-green-400' :
+            problem.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+            'bg-red-500/20 text-red-400'
+          }`}>
+            {problem.difficulty}
+          </span>
+          {/* Connection Status */}
+          {connected ? (
+            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              Live
+            </span>
+          ) : (
+            <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">
+              API Mode
+            </span>
+          )}
         </div>
         
         <div className="flex items-center gap-4">
@@ -213,8 +506,75 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
 
               <div>
                 <h3 className="text-white font-bold mb-3">Examples</h3>
-                <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                  {problem.examples}
+                <div className="space-y-4">
+                  {(() => {
+                    try {
+                      const examples = JSON.parse(problem.examples)
+                      return examples.map((ex: any, idx: number) => (
+                        <div key={idx} className="bg-gray-900/50 border border-cyan-500/10 rounded-lg p-4">
+                          <div className="font-bold text-white mb-2">Example {idx + 1}:</div>
+                          <div className="space-y-2 font-mono text-sm">
+                            <div>
+                              <span className="text-gray-400">Input: </span>
+                              <span className="text-cyan-400">{ex.input}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Output: </span>
+                              <span className="text-green-400">{ex.output}</span>
+                            </div>
+                            {ex.explanation && (
+                              <div>
+                                <span className="text-gray-400">Explanation: </span>
+                                <span className="text-gray-300">{ex.explanation}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    } catch {
+                      // Fallback for markdown format
+                      return (
+                        <div className="space-y-4">
+                          {problem.examples.split(/\*\*Example \d+:\*\*/).filter(Boolean).map((example: string, idx: number) => {
+                            const lines = example.trim().split('\n').filter(line => line.trim())
+                            return (
+                              <div key={idx} className="bg-gray-900/50 border border-cyan-500/10 rounded-lg p-4">
+                                <div className="font-bold text-white mb-2">Example {idx + 1}:</div>
+                                <div className="space-y-2 font-mono text-sm">
+                                  {lines.map((line: string, lineIdx: number) => {
+                                    const cleaned = line.replace(/^```|```$/g, '').trim()
+                                    if (cleaned.startsWith('Input:')) {
+                                      return (
+                                        <div key={lineIdx}>
+                                          <span className="text-gray-400">Input: </span>
+                                          <span className="text-cyan-400">{cleaned.replace('Input:', '').trim()}</span>
+                                        </div>
+                                      )
+                                    } else if (cleaned.startsWith('Output:')) {
+                                      return (
+                                        <div key={lineIdx}>
+                                          <span className="text-gray-400">Output: </span>
+                                          <span className="text-green-400">{cleaned.replace('Output:', '').trim()}</span>
+                                        </div>
+                                      )
+                                    } else if (cleaned.startsWith('Explanation:')) {
+                                      return (
+                                        <div key={lineIdx}>
+                                          <span className="text-gray-400">Explanation: </span>
+                                          <span className="text-gray-300">{cleaned.replace('Explanation:', '').trim()}</span>
+                                        </div>
+                                      )
+                                    }
+                                    return null
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -322,7 +682,11 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
                     <div className="text-gray-400">Latest submission:</div>
                     <div className="text-cyan-400">{latestOpponentSubmission.language}</div>
                     <div className="text-gray-500">
-                      {new Date(latestOpponentSubmission.timestamp).toLocaleTimeString()}
+                      {new Date(
+                        'submittedAt' in latestOpponentSubmission 
+                          ? latestOpponentSubmission.submittedAt 
+                          : latestOpponentSubmission.timestamp
+                      ).toLocaleTimeString()}
                     </div>
                   </div>
                 )}

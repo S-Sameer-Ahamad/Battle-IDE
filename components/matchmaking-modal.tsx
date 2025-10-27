@@ -7,77 +7,78 @@ import { useAuth } from "@/lib/auth-context"
 interface MatchmakingModalProps {
   isOpen: boolean
   onClose: () => void
+  difficulty: "Easy" | "Medium" | "Hard"
 }
 
-export default function MatchmakingModal({ isOpen, onClose }: MatchmakingModalProps) {
+export default function MatchmakingModal({ isOpen, onClose, difficulty }: MatchmakingModalProps) {
   const router = useRouter()
   const { user } = useAuth()
   const [state, setState] = useState<"searching" | "found">("searching")
-  const [eloWindow, setEloWindow] = useState(100)
+  const [opponent, setOpponent] = useState<any>(null)
   const [countdown, setCountdown] = useState(5)
+  const [matchId, setMatchId] = useState<string | null>(null)
   const startedRef = useRef(false)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Poll matchmaking API
+  useEffect(() => {
+    if (!isOpen || !user?.id || state !== "searching") return
+
+    const pollMatchmaking = async () => {
+      try {
+        const response = await fetch('/api/matchmaking/find', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, preferredDifficulty: difficulty }),
+        })
+
+        const data = await response.json()
+
+        if (data.status === 'matched') {
+          // Match found!
+          setState("found")
+          setOpponent(data.opponent)
+          setMatchId(data.match.id)
+          clearInterval(pollingRef.current!)
+        }
+        // If status is 'searching', continue polling
+      } catch (error) {
+        console.error('Matchmaking error:', error)
+      }
+    }
+
+    // Initial call
+    pollMatchmaking()
+
+  // Poll every 1 second for snappier UX
+  pollingRef.current = setInterval(pollMatchmaking, 1000)
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+      }
+      // Cancel matchmaking when modal closes
+      if (user?.id && state === "searching") {
+        fetch(`/api/matchmaking/find?userId=${user.id}`, { method: 'DELETE' })
+      }
+    }
+  }, [isOpen, user, state, difficulty])
 
   useEffect(() => {
-    if (!isOpen) return
-
-    // Simulate finding opponent after 3 seconds
-    const findTimer = setTimeout(() => {
-      setState("found")
-    }, 3000)
-
-    return () => clearTimeout(findTimer)
-  }, [isOpen])
-
-  useEffect(() => {
-  if (state !== "found") return
+  if (state !== "found" || !matchId) return
 
     // Countdown timer
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
       return () => clearTimeout(timer)
     } else {
-      // Auto-start: create a match and join with current user
-      (async () => {
-        if (startedRef.current) return
-        startedRef.current = true
-        try {
-          if (!user?.id) {
-            console.error('No authenticated user; cannot start match')
-            onClose()
-            return
-          }
-          // Create a simple 1v1 match with a random existing problem (fallback id: 1)
-          const problemId = 1
-          const createRes = await fetch('/api/matches', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ problemId, type: '1v1' })
-          })
-          const createData = await createRes.json()
-          if (!createRes.ok) throw new Error(createData.error || 'Failed to create match')
-
-          const matchId = createData.match.id as string
-
-          // Join match as current user
-          const joinRes = await fetch(`/api/matches/${matchId}/join`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user?.id, isHost: true })
-          })
-          if (!joinRes.ok) {
-            const err = await joinRes.json().catch(() => ({}))
-            throw new Error(err.error || 'Failed to join match')
-          }
-
-          router.push(`/match/${matchId}`)
-          onClose()
-        } catch (e) {
-          console.error('Failed to auto-start match:', e)
-          onClose()
-        }
-      })()
+      // Auto-navigate to match
+      if (startedRef.current) return
+      startedRef.current = true
+      router.push(`/match/${matchId}`)
+      onClose()
     }
-  }, [state, countdown, router, onClose])
+  }, [state, countdown, matchId, router, onClose])
 
   if (!isOpen) return null
 
@@ -87,6 +88,17 @@ export default function MatchmakingModal({ isOpen, onClose }: MatchmakingModalPr
         {state === "searching" && (
           <div className="text-center space-y-6">
             <h2 className="text-2xl font-bold text-white">Searching for Opponent...</h2>
+
+            {/* Chosen Difficulty */}
+            <div className="flex items-center justify-center gap-2">
+              <span className={`px-3 py-1 rounded-lg text-sm border ${
+                difficulty === 'Easy' ? 'bg-green-500/20 border-green-500/40 text-green-300' :
+                difficulty === 'Medium' ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-200' :
+                'bg-red-500/20 border-red-500/40 text-red-300'
+              }`}>
+                {difficulty} {difficulty === 'Easy' ? '(10m)' : difficulty === 'Medium' ? '(20m)' : '(30m)'}
+              </span>
+            </div>
 
             {/* Animated Radar */}
             <div className="flex justify-center">
@@ -107,8 +119,8 @@ export default function MatchmakingModal({ isOpen, onClose }: MatchmakingModalPr
             </div>
 
             <div className="space-y-2">
-              <p className="text-gray-400">Expanding Elo window...</p>
-              <p className="text-cyan-400 font-bold">±{eloWindow}</p>
+              <p className="text-gray-400">Searching for opponent...</p>
+              <p className="text-cyan-400 font-bold">ELO Range: ±200 • {difficulty} problem</p>
             </div>
 
             <button
@@ -138,10 +150,10 @@ export default function MatchmakingModal({ isOpen, onClose }: MatchmakingModalPr
 
               <div className="flex-1">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-magenta-secondary to-cyan-500 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-2">
-                  O
+                  {opponent?.username?.[0]?.toUpperCase() || 'O'}
                 </div>
-                <div className="text-white font-bold">Opponent</div>
-                <div className="text-xs text-gray-400">1240 Elo</div>
+                <div className="text-white font-bold">{opponent?.username || 'Opponent'}</div>
+                <div className="text-xs text-gray-400">{opponent?.elo || 1500} Elo</div>
               </div>
             </div>
 

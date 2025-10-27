@@ -31,8 +31,8 @@ Output: [1,2]
 Input: nums = [3,3], target = 6
 Output: [0,1]
 \`\`\``,
-        difficulty: "Easy",
-        timeLimit: 2000,
+  difficulty: "Easy",
+  timeLimit: 600000, // 10 minutes in ms
         memoryLimit: 256,
         testCases: JSON.stringify([
           { input: "[2,7,11,15]\n9", expectedOutput: "[0,1]" },
@@ -78,8 +78,8 @@ Output: [0]
 Input: l1 = [9,9,9,9,9,9,9], l2 = [9,9,9,9]
 Output: [8,9,9,9,0,0,0,1]
 \`\`\``,
-        difficulty: "Medium",
-        timeLimit: 3000,
+  difficulty: "Medium",
+  timeLimit: 1200000, // 20 minutes in ms
         memoryLimit: 256,
         testCases: JSON.stringify([
           { input: "[2,4,3]\n[5,6,4]", expectedOutput: "[7,0,8]" },
@@ -136,8 +136,8 @@ Output: 3
 Explanation: The answer is "wke", with the length of 3.
 Notice that the answer must be a substring, "pwke" is a subsequence and not a substring.
 \`\`\``,
-        difficulty: "Medium",
-        timeLimit: 3000,
+  difficulty: "Hard",
+  timeLimit: 1800000, // 30 minutes in ms
         memoryLimit: 256,
         testCases: JSON.stringify([
           { input: '"abcabcbb"', expectedOutput: "3" },

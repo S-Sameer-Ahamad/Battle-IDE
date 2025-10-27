@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useState, useRef, useEffect } from "react"
+import { useSocket } from '@/lib/socket-context'
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 
@@ -15,6 +16,7 @@ export default function AppHeader({ onChatToggle, onNotificationToggle }: AppHea
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
+  const { isConnected } = useSocket()
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -88,6 +90,9 @@ export default function AppHeader({ onChatToggle, onNotificationToggle }: AppHea
                 d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
               />
             </svg>
+            {!isConnected && (
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" title="Disconnected"></span>
+            )}
           </button>
 
           {/* User Avatar Dropdown */}

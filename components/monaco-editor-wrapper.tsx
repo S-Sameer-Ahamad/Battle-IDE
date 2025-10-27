@@ -130,7 +130,7 @@ export default function MonacoEditorWrapper({
               wordWrap: "on",
               padding: { top: 16, bottom: 16 },
               cursorBlinking: "smooth",
-              cursorSmoothCaretAnimation: true,
+              cursorSmoothCaretAnimation: 'on',
               renderWhitespace: "selection",
               selectOnLineNumbers: true,
               roundedSelection: false,

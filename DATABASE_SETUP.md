@@ -140,4 +140,29 @@ Your database is ready! You can now:
 - **Fast performance** for local development
 - **Easy migration** to PostgreSQL later
 
+## 🔁 Redis (Matchmaking persistence)
+
+To persist matchmaking queues and notifications across server restarts or across multiple instances, the app can use Redis.
+
+Local quick start (Docker):
+
+```powershell
+# Run Redis locally (detached)
+docker run -d --name battle-redis -p 6379:6379 redis:7-alpine
+```
+
+Environment variable: set `REDIS_URL` (optional, defaults to `redis://127.0.0.1:6379`).
+
+Example `.env` entry:
+
+```
+REDIS_URL=redis://127.0.0.1:6379
+```
+
+Notes:
+- Matchmaking now stores per-difficulty queues in Redis sorted sets (`matchmaking:queue:<difficulty>`).
+- Per-user transient data and notifications are stored under `matchmaking:user:<userId>` and `matchmaking:notification:<userId>`.
+- Notifications are set with a TTL (2 minutes) so they expire automatically.
+- If you deploy to multiple instances, ensure they share the same `REDIS_URL`.
+
 Happy coding! 🎉

@@ -67,13 +67,23 @@ export default function NewProblemPage() {
   const onSubmit = async (data: ProblemFormData) => {
     setIsLoading(true)
     try {
-      // TODO: Implement actual problem creation logic
-      console.log("Problem data:", data)
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await fetch('/api/problems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create problem')
+      }
+
       toast.success("Problem created successfully!")
       router.push("/admin/problems")
     } catch (error) {
-      toast.error("Failed to create problem. Please try again.")
+      toast.error(error instanceof Error ? error.message : "Failed to create problem. Please try again.")
     } finally {
       setIsLoading(false)
     }

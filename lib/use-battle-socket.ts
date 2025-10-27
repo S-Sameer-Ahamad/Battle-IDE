@@ -65,11 +65,16 @@ export function useBattleSocket(matchId: string | null) {
   useEffect(() => {
     if (!matchId || !user) return
 
-    // Create socket connection
+    // Create socket connection with auth in query
     const newSocket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
       path: '/socket.io/',
       transports: ['websocket', 'polling'],
       reconnectionAttempts: maxReconnectAttempts,
+      auth: {
+        userId: user.id,
+        username: user.username,
+        email: user.email,
+      },
     })
 
     // Connection handlers
@@ -78,15 +83,9 @@ export function useBattleSocket(matchId: string | null) {
       setConnected(true)
       reconnectAttempts.current = 0
 
-      // Authenticate with token
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth_token='))
-        ?.split('=')[1]
-
-      if (token) {
-        newSocket.emit('auth', token)
-      }
+      // Join the battle room immediately since auth is in connection params
+      console.log('🔐 Authenticated, joining battle room...')
+      newSocket.emit('join_battle', { matchId })
     })
 
     newSocket.on('disconnect', () => {

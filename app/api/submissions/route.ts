@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { judge0Service, SUPPORTED_LANGUAGES } from '@/lib/judge0'
+import { battleSocket } from '@/lib/socket-server'
+import { calculateBattleElo, type EloResult } from '@/lib/elo'
 
 const createSubmissionSchema = z.object({
   matchId: z.string(),
@@ -84,9 +86,10 @@ export async function POST(request: NextRequest) {
         code,
         language,
         status,
-        testCasesPassed: passedCount,
-        totalTestCases: totalCount,
+        passedTests: passedCount,
+        totalTests: totalCount,
         executionTime: Math.round(executionTime * 1000), // Convert to milliseconds
+        memory: 0, // Default memory usage
       },
       include: {
         user: {
@@ -99,14 +102,74 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             status: true,
+            type: true,
           },
         },
       },
     })
 
-    return NextResponse.json({ 
+    // If this submission is accepted, complete the match (API fallback path)
+    if (submission.status === 'accepted') {
+      try {
+        // Complete match and determine ELO for 1v1
+        const matchWithParticipants = await prisma.match.update({
+          where: { id: matchId },
+          data: {
+            status: 'completed',
+            winnerId: userId,
+            endedAt: new Date(),
+          },
+          include: {
+            type: true,
+            participants: {
+              include: { user: true },
+            },
+          } as any,
+        }) as any
+
+        let eloResults: EloResult[] | null = null
+        if (matchWithParticipants.type === '1v1' && matchWithParticipants.participants?.length === 2) {
+          const winner = matchWithParticipants.participants.find((p: any) => p.userId === userId)
+          const loser = matchWithParticipants.participants.find((p: any) => p.userId !== userId)
+          if (winner && loser) {
+            const [winnerElo, loserElo] = calculateBattleElo({
+              winnerId: winner.userId,
+              winnerRating: winner.user.elo,
+              loserId: loser.userId,
+              loserRating: loser.user.elo,
+            })
+            eloResults = [winnerElo, loserElo]
+
+            // Persist ELO changes and win/loss
+            await prisma.user.update({
+              where: { id: winner.userId },
+              data: { elo: winnerElo.newRating, wins: { increment: 1 } },
+            })
+            await prisma.user.update({
+              where: { id: loser.userId },
+              data: { elo: loserElo.newRating, losses: { increment: 1 } },
+            })
+          }
+        }
+
+        // Notify room via Socket.IO if available (so connected clients redirect)
+        const io = battleSocket.getIO()
+        if (io) {
+          const winnerUsername = submission.user.username
+          io.to(matchId).emit('battle_completed', {
+            winnerId: userId,
+            winnerUsername,
+            eloChanges: eloResults || undefined,
+          })
+        }
+      } catch (e) {
+        console.error('Failed to complete match on accepted submission:', e)
+      }
+    }
+
+    return NextResponse.json({
       submission,
-      executionResults: results
+      executionResults: results,
     })
   } catch (error) {
     console.error('Error creating submission:', error)

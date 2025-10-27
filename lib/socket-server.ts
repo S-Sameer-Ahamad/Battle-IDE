@@ -27,11 +27,22 @@ export interface BattleRoom {
 class BattleSocketServer {
   private io: SocketServer | null = null
   private rooms: Map<string, BattleRoom> = new Map()
+  private onlineUsers: Map<string, string> = new Map() // userId -> socketId
+  private userSockets: Map<string, string> = new Map() // socketId -> userId
 
   initialize(httpServer: HTTPServer) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const allowedOrigins = [
+      appUrl,
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://localhost:3000',
+      'https://127.0.0.1:3000',
+    ]
+
     this.io = new SocketServer(httpServer, {
       cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        origin: allowedOrigins,
         credentials: true,
       },
       path: '/socket.io/',
@@ -47,7 +58,29 @@ class BattleSocketServer {
     this.io.on('connection', (socket: Socket) => {
       console.log(`🔌 Client connected: ${socket.id}`)
 
-      // Authenticate socket connection
+      // Get auth from handshake (passed during connection)
+      const authData = socket.handshake.auth
+      if (authData && authData.userId && authData.username) {
+        socket.data.user = {
+          userId: authData.userId,
+          username: authData.username,
+          email: authData.email || '',
+          socketId: socket.id,
+        }
+        console.log(`✅ User authenticated via handshake: ${authData.username}`)
+        
+        // Track online user
+        this.onlineUsers.set(authData.userId, socket.id)
+        this.userSockets.set(socket.id, authData.userId)
+        
+        // Notify user's friends that they are online
+        this.notifyFriendsOnlineStatus(authData.userId, authData.username, true)
+        
+        // Send list of online friends to this user
+        this.sendOnlineFriendsList(socket, authData.userId)
+      }
+
+      // Authenticate socket connection (legacy support for token-based auth)
       socket.on('auth', async (token: string) => {
         try {
           const payload = verifyToken(token)
@@ -139,8 +172,22 @@ class BattleSocketServer {
           return
         }
 
+        // If already active or completed, ignore duplicate starts
+        if (room.status !== 'waiting') {
+          return
+        }
+
         room.status = 'active'
         room.startedAt = new Date()
+
+        // Persist start time and status to DB for consistency across refreshes
+        prisma.match.update({
+          where: { id: matchId },
+          data: {
+            status: 'active',
+            startedAt: room.startedAt,
+          },
+        }).catch(err => console.error('Failed to persist match start:', err))
 
         this.io!.to(matchId).emit('battle_started', {
           startedAt: room.startedAt,
@@ -359,6 +406,9 @@ class BattleSocketServer {
       socket.on('disconnect', () => {
         console.log(`🔌 Client disconnected: ${socket.id}`)
 
+        // Get userId before cleanup
+        const userId = this.userSockets.get(socket.id)
+        
         // Remove from all rooms
         this.rooms.forEach((room, matchId) => {
           if (socket.data.user) {
@@ -368,8 +418,208 @@ class BattleSocketServer {
             }
           }
         })
+        
+        // Remove from online tracking and notify friends
+        if (userId && socket.data.user) {
+          this.onlineUsers.delete(userId)
+          this.userSockets.delete(socket.id)
+          this.notifyFriendsOnlineStatus(userId, socket.data.user.username, false)
+        }
+      })
+
+      // User online announcement
+      socket.on('user_online', ({ userId, username }: { userId: string; username: string }) => {
+        this.onlineUsers.set(userId, socket.id)
+        this.userSockets.set(socket.id, userId)
+        this.notifyFriendsOnlineStatus(userId, username, true)
+        this.sendOnlineFriendsList(socket, userId)
+      })
+
+      // Typing indicators
+      socket.on('typing', ({ conversationId }: { conversationId: string }) => {
+        if (!socket.data.user) return
+        const user = socket.data.user as SocketUser
+        
+        // Emit to the conversation partner
+        socket.broadcast.emit('user_typing', {
+          userId: user.userId,
+          conversationId,
+        })
+      })
+
+      socket.on('stop_typing', ({ conversationId }: { conversationId: string }) => {
+        if (!socket.data.user) return
+        const user = socket.data.user as SocketUser
+        
+        socket.broadcast.emit('user_stopped_typing', {
+          userId: user.userId,
+          conversationId,
+        })
+      })
+
+      // Real-time message sending
+      socket.on('send_message', async (data: {
+        receiverId: string
+        content: string
+        conversationId?: string
+      }) => {
+        if (!socket.data.user) return
+        const user = socket.data.user as SocketUser
+        
+        // Send to receiver if they're online
+        const receiverSocketId = this.onlineUsers.get(data.receiverId)
+        if (receiverSocketId) {
+          this.io!.to(receiverSocketId).emit('new_message', {
+            senderId: user.userId,
+            senderUsername: user.username,
+            content: data.content,
+            conversationId: data.conversationId,
+            timestamp: new Date(),
+          })
+        }
+      })
+
+      // Read receipts: notify partner when user reads messages
+      socket.on('messages_read', (data: { partnerId: string }) => {
+        if (!socket.data.user) return
+        const user = socket.data.user as SocketUser
+        const partnerSocketId = this.onlineUsers.get(data.partnerId)
+        if (partnerSocketId) {
+          this.io!.to(partnerSocketId).emit('messages_read', {
+            readerId: user.userId,
+            timestamp: new Date().toISOString(),
+          })
+        }
+      })
+
+      // Join/leave generic rooms (for group features)
+      socket.on('join_room', ({ roomId }: { roomId: string }) => {
+        socket.join(roomId)
+        console.log(`User ${socket.data.user?.username} joined room ${roomId}`)
+      })
+
+      socket.on('leave_room', ({ roomId }: { roomId: string }) => {
+        socket.leave(roomId)
+        console.log(`User ${socket.data.user?.username} left room ${roomId}`)
       })
     })
+  }
+
+  // Helper method to notify friends when user goes online/offline
+  private async notifyFriendsOnlineStatus(userId: string, username: string, isOnline: boolean) {
+    try {
+      // Fetch user's friends from database
+      const friendRequests = await prisma.friendRequest.findMany({
+        where: {
+          OR: [
+            { senderId: userId, status: 'accepted' },
+            { receiverId: userId, status: 'accepted' },
+          ],
+        },
+        include: {
+          sender: true,
+          receiver: true,
+        },
+      })
+
+      // Get friend IDs
+      const friendIds = friendRequests.map((req) =>
+        req.senderId === userId ? req.receiverId : req.senderId
+      )
+
+      // Notify each online friend
+      friendIds.forEach((friendId) => {
+        const friendSocketId = this.onlineUsers.get(friendId)
+        if (friendSocketId) {
+          this.io!.to(friendSocketId).emit(isOnline ? 'friend_online' : 'friend_offline', {
+            userId,
+            username,
+          })
+        }
+      })
+
+      console.log(`📢 Notified ${friendIds.length} friends that ${username} is ${isOnline ? 'online' : 'offline'}`)
+    } catch (error) {
+      console.error('Error notifying friends of online status:', error)
+    }
+  }
+
+  // Helper method to send list of online friends to a user
+  private async sendOnlineFriendsList(socket: Socket, userId: string) {
+    try {
+      // Fetch user's friends
+      const friendRequests = await prisma.friendRequest.findMany({
+        where: {
+          OR: [
+            { senderId: userId, status: 'accepted' },
+            { receiverId: userId, status: 'accepted' },
+          ],
+        },
+        include: {
+          sender: true,
+          receiver: true,
+        },
+      })
+
+      // Get friend IDs
+      const friendIds = friendRequests.map((req) =>
+        req.senderId === userId ? req.receiverId : req.senderId
+      )
+
+      // Filter for online friends
+      const onlineFriendIds = friendIds.filter((friendId) => this.onlineUsers.has(friendId))
+
+      // Send to user
+      socket.emit('online_friends_list', { friendIds: onlineFriendIds })
+      console.log(`👥 Sent online friends list to ${socket.data.user?.username}: ${onlineFriendIds.length} online`)
+    } catch (error) {
+      console.error('Error sending online friends list:', error)
+    }
+  }
+
+  // Method to send notification to a specific user
+  public sendNotificationToUser(userId: string, notification: any) {
+    const socketId = this.onlineUsers.get(userId)
+    if (socketId && this.io) {
+      this.io.to(socketId).emit('new_notification', notification)
+      console.log(`🔔 Sent notification to user ${userId}`)
+    }
+  }
+
+  // Method to send a direct chat message to a specific user (used from API fallback)
+  public sendDirectMessage(receiverId: string, payload: any) {
+    const socketId = this.onlineUsers.get(receiverId)
+    if (socketId && this.io) {
+      this.io.to(socketId).emit('new_message', payload)
+      console.log(`💬 Sent direct message to user ${receiverId}`)
+    }
+  }
+
+  // Method to send friend request notification
+  public sendFriendRequestNotification(receiverId: string, request: any) {
+    const socketId = this.onlineUsers.get(receiverId)
+    if (socketId && this.io) {
+      this.io.to(socketId).emit('new_friend_request', request)
+      console.log(`👋 Sent friend request notification to user ${receiverId}`)
+    }
+  }
+
+  // Method to notify when friend request is accepted
+  public sendFriendRequestAccepted(userId: string, data: any) {
+    const socketId = this.onlineUsers.get(userId)
+    if (socketId && this.io) {
+      this.io.to(socketId).emit('friend_request_accepted', data)
+      console.log(`✅ Sent friend request accepted notification to user ${userId}`)
+    }
+  }
+
+  // Method to send match invitation
+  public sendMatchInvitation(userId: string, invitation: any) {
+    const socketId = this.onlineUsers.get(userId)
+    if (socketId && this.io) {
+      this.io.to(socketId).emit('match_invitation', invitation)
+      console.log(`⚔️ Sent match invitation to user ${userId}`)
+    }
   }
 
   private handleLeaveBattle(socket: Socket, matchId: string) {

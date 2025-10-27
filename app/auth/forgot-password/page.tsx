@@ -10,15 +10,33 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // TODO: Implement password reset email logic
-    setTimeout(() => {
+    setError("")
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setSubmitted(true)
+      } else {
+        setError(data.error || 'Failed to send reset email')
+      }
+    } catch (err) {
+      console.error('Error:', err)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
       setIsLoading(false)
-      setSubmitted(true)
-    }, 1000)
+    }
   }
 
   return (
@@ -28,6 +46,11 @@ export default function ForgotPasswordPage() {
           <p className="text-gray-400 text-sm mb-6">
             Enter your email address and we'll send you a link to reset your password.
           </p>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              {error}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-white mb-2">Email</label>
@@ -57,8 +80,16 @@ export default function ForgotPasswordPage() {
         </>
       ) : (
         <div className="text-center">
-          <p className="text-green-400 mb-4">Check your email for a password reset link!</p>
-          <p className="text-gray-400 text-sm mb-6">The link will expire in 24 hours.</p>
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <p className="text-green-400 text-lg font-semibold mb-2">Check your email!</p>
+          <p className="text-gray-400 text-sm mb-6">
+            If an account exists with <strong className="text-white">{email}</strong>, you'll receive a password reset link within a few minutes.
+          </p>
+          <p className="text-gray-400 text-sm">The link will expire in 1 hour.</p>
         </div>
       )}
 
