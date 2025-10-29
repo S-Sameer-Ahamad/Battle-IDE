@@ -215,6 +215,22 @@ export default function ResultsPage() {
       )}
 
       <div className="container mx-auto px-4 py-12 max-w-7xl">
+        {/* Back Button */}
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="group flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors mb-8"
+        >
+          <svg 
+            className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm font-medium">Back to Dashboard</span>
+        </button>
+
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-cyan-400 to-magenta-secondary bg-clip-text text-transparent">

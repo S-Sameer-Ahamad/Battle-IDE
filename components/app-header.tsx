@@ -46,9 +46,9 @@ export default function AppHeader({ onChatToggle, onNotificationToggle }: AppHea
 
   return (
     <header className="fixed top-0 w-full z-50 backdrop-blur-md border-b border-cyan-500/20 bg-black/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         {/* Logo */}
-        <Link href="/dashboard" className="text-xl font-bold neon-text-cyan hover:opacity-80 transition-opacity">
+        <Link href="/dashboard" className="text-xl font-bold neon-text-cyan hover:opacity-80 transition-opacity flex items-center gap-2">
           ⚔️ BATTLE IDE
         </Link>
 

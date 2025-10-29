@@ -155,6 +155,24 @@ export default function ProfilePage({ params }: { params: Promise<{ id: string }
     <AuthenticatedLayout>
       <main className="px-4 sm:px-6 lg:px-8 pb-20">
         <div className="max-w-6xl mx-auto">
+          {/* Back Button */}
+          <div className="mb-8">
+            <button
+              onClick={() => window.history.back()}
+              className="group flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors"
+            >
+              <svg 
+                className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-sm font-medium">Back</span>
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Profile Card */}
             <div className="lg:col-span-1">

@@ -55,7 +55,26 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthCard title="Create Account">
+    <>
+      {/* Navigation - Back to Home */}
+      <div className="fixed top-6 left-6 z-50">
+        <Link
+          href="/"
+          className="group flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors"
+        >
+          <svg 
+            className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm font-medium">Back to Home</span>
+        </Link>
+      </div>
+
+      <AuthCard title="Create Account">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-white mb-2">Email</label>
@@ -185,5 +204,6 @@ export default function RegisterPage() {
         </p>
       </div>
     </AuthCard>
+    </>
   )
 }

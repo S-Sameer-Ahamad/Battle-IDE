@@ -32,6 +32,7 @@ model User {
   // OAuth
   googleId  String?  @unique
   avatarUrl String?
+  needsUsernameSetup Boolean @default(false) // For OAuth users who need to set custom username
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

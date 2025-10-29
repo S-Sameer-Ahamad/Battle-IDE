@@ -359,6 +359,22 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
       <div className="min-h-screen bg-black flex flex-col">
         <div className="bg-accent-card border-b border-cyan-500/20 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-6">
+            {/* Back Button */}
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="group flex items-center gap-1 text-gray-400 hover:text-cyan-400 transition-colors"
+              title="Back to Dashboard"
+            >
+              <svg 
+                className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
             <h1 className="text-white font-bold text-lg">Match Lobby</h1>
             <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">Waiting for opponent…</span>
           </div>
@@ -425,6 +441,22 @@ export default function BattleScreen({ params }: { params: Promise<{ id: string 
       {/* Top Bar */}
       <div className="bg-accent-card border-b border-cyan-500/20 px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-6">
+          {/* Back Button */}
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="group flex items-center gap-1 text-gray-400 hover:text-cyan-400 transition-colors"
+            title="Leave Match"
+          >
+            <svg 
+              className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
           <h1 className="text-white font-bold text-lg">
             Match #{userMatchNumber > 0 ? userMatchNumber : '...'}
           </h1>

@@ -20,42 +20,25 @@ export default function Home() {
 
   return (
     <main className="battle-bg min-h-screen overflow-hidden">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 backdrop-blur-md border-b border-cyan-500/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center text-background bg-black">
-          <div className="text-xl font-bold neon-text-cyan">⚔️BATTLE IDE</div>
-          <div className="flex gap-6 items-center">
-            <button
-              onClick={() => handleNavigation("/auth/login")}
-              className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 cursor-pointer"
-              style={{
-                background: "linear-gradient(135deg, #00FFFF, #FF007F)",
-                color: "#0A0A0F",
-                boxShadow: hoveredCTA === "nav-login" ? "0 0 20px rgba(0, 255, 255, 0.6)" : "none",
-              }}
-              onMouseEnter={() => setHoveredCTA("nav-login")}
-              onMouseLeave={() => setHoveredCTA(null)}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => handleNavigation("/auth/register")}
-              className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 cursor-pointer"
-              style={{
-                background: "linear-gradient(135deg, #00FFFF, #FF007F)",
-                color: "#0A0A0F",
-                boxShadow: hoveredCTA === "nav-signup" ? "0 0 20px rgba(0, 255, 255, 0.6)" : "none",
-              }}
-              onMouseEnter={() => setHoveredCTA("nav-signup")}
-              onMouseLeave={() => setHoveredCTA(null)}
-            >
-              Sign Up
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Sign In Button - Top Right */}
+      <div className="fixed top-6 right-6 z-50">
+        <button
+          onClick={() => handleNavigation("/auth/login")}
+          className="px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 cursor-pointer"
+          style={{
+            background: "linear-gradient(135deg, #00FFFF, #FF007F)",
+            color: "#0A0A0F",
+            boxShadow: hoveredCTA === "nav-login" ? "0 0 20px rgba(0, 255, 255, 0.6)" : "none",
+          }}
+          onMouseEnter={() => setHoveredCTA("nav-login")}
+          onMouseLeave={() => setHoveredCTA(null)}
+        >
+          Sign In
+        </button>
+      </div>
+
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 px-4 overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div

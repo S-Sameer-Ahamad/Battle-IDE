@@ -12,6 +12,8 @@ interface User {
   wins: number
   losses: number
   bio?: string
+  avatarUrl?: string
+  needsUsernameSetup?: boolean
   createdAt?: string
   updatedAt?: string
 }

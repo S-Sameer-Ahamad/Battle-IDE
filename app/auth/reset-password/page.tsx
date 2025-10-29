@@ -107,7 +107,26 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <AuthCard title="Set New Password">
+    <>
+      {/* Navigation - Back to Login */}
+      <div className="fixed top-6 left-6 z-50">
+        <Link
+          href="/auth/login"
+          className="group flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors"
+        >
+          <svg 
+            className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm font-medium">Back to Login</span>
+        </Link>
+      </div>
+
+      <AuthCard title="Reset Password">
       {!success ? (
         <>
           <p className="text-gray-400 text-sm mb-6">Enter your new password below.</p>
@@ -179,5 +198,6 @@ export default function ResetPasswordPage() {
         </div>
       )}
     </AuthCard>
+    </>
   )
 }

@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
             googleId: googleUser.id,
             emailVerified: googleUser.verified_email,
             avatarUrl: googleUser.picture,
+            needsUsernameSetup: true, // Flag for username setup
             // Password is null for OAuth users
           },
         })
@@ -97,7 +98,13 @@ export async function GET(request: NextRequest) {
 
     // Create response with redirect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const response = NextResponse.redirect(`${appUrl}/dashboard`)
+    
+    // Redirect to username setup if needed, otherwise to dashboard
+    const redirectUrl = user.needsUsernameSetup 
+      ? `${appUrl}/auth/setup-username` 
+      : `${appUrl}/dashboard`
+    
+    const response = NextResponse.redirect(redirectUrl)
 
     // Set auth cookie
     setAuthCookie(response, jwtToken)
